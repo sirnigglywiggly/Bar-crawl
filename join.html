@@ -97,8 +97,10 @@ label.lbl{display:block;text-align:left;font-size:8px;color:var(--pink);margin:6
         : /credit|billing/i.test(d) ? 'THE ANTHROPIC ACCOUNT IS OUT OF CREDITS.'
         : /not_found/.test(d) ? 'THE CLAUDE MODEL NAME WASN\'T FOUND.'
         : /overloaded|rate_limit/.test(d) ? 'CLAUDE IS BUSY RIGHT NOW. TRY AGAIN IN A MINUTE.'
-        : "CLAUDE COULDN'T DRAW THIS ONE" + (d ? ' (' + d.toUpperCase().slice(0, 40) + ')' : '') + '.';
-      $('msg').textContent = (why ? why + ' ' : '') + 'USING THE QUICK PIXEL VERSION INSTEAD.';
+        : /ai-timeout|HTTP 504|time limit/i.test(e.message + d) ? 'CLAUDE TOOK TOO LONG. TAP "ASK CLAUDE FOR ANOTHER TAKE" TO RETRY.'
+        : "CLAUDE COULDN'T DRAW THIS ONE.";
+      const code = ' [' + (e.message || '?') + (d ? ': ' + d.slice(0, 90) : '') + ']';
+      $('msg').textContent = (why ? why + ' ' : '') + 'USING THE QUICK PIXEL VERSION INSTEAD.' + code.toUpperCase();
       $('again').hidden = e.message === 'ai-not-configured';
       $('msg').classList.add('err');
     }

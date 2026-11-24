@@ -64,7 +64,7 @@ function photoToJpegBase64(file,max){return new Promise((res,rej)=>{const url=UR
     c.width=Math.round(img.naturalWidth*k);c.height=Math.round(img.naturalHeight*k);c.getContext('2d').drawImage(img,0,0,c.width,c.height);
     URL.revokeObjectURL(url);res(c.toDataURL('image/jpeg',0.85).split(',')[1]);};img.src=url;});}
 async function claudeLook(b64){const r=await fetch('/api/avatar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image:b64,type:'image/jpeg'})});
-  const j=await r.json().catch(()=>({}));if(!r.ok||!j.look){const e=new Error(j.error||('HTTP '+r.status));e.detail=j.detail||'';throw e;}
+  const j=await r.json().catch(()=>({}));if(!r.ok||!j.look){const e=new Error(j.error||('HTTP '+r.status));e.detail=(j.detail||'')+(j.error?'':(r.status===504?' (vercel time limit)':' (status '+r.status+')'));e.code=j.error||('HTTP '+r.status);throw e;}
   const L=cleanParty([{id:'',n:'X',h:j.look.h,s:j.look.s,p:j.look.p}]);if(!L||!L.length)throw new Error('ai-bad-output');return{h:L[0].h,s:L[0].s,p:L[0].p};}
 /* Shared party list: /api/party on Vercel (Redis). Falls back to this phone only if the API isn't set up. */
 const Party={live:false,players:[],

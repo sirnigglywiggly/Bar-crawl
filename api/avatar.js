@@ -73,7 +73,8 @@ async function overLimit(ip) {
 
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
-  if (req.method !== 'POST') { res.setHeader('Allow', 'POST'); return res.status(405).json({ error: 'method-not-allowed' }); }
+  if (req.method === 'GET') return res.status(200).json({ configured: !!process.env.ANTHROPIC_API_KEY, model: MODEL, store: !!storeConfig() });
+  if (req.method !== 'POST') { res.setHeader('Allow', 'GET, POST'); return res.status(405).json({ error: 'method-not-allowed' }); }
   if (!process.env.ANTHROPIC_API_KEY) return res.status(503).json({ error: 'ai-not-configured' });
 
   try {
@@ -85,8 +86,13 @@ module.exports = async (req, res) => {
     const ip = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
     if (await overLimit(ip)) return res.status(429).json({ error: 'slow-down' });
 
-    const r = await fetch(`${API_BASE}/v1/messages`, {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 55000);
+    let r;
+    try {
+    r = await fetch(`${API_BASE}/v1/messages`, {
       method: 'POST',
+      signal: ctrl.signal,
       headers: {
         'x-api-key': process.env.ANTHROPIC_API_KEY,
         'anthropic-version': '2023-06-01',
@@ -104,13 +110,16 @@ module.exports = async (req, res) => {
         }],
       }),
     });
-    const j = await r.json();
+    } catch (e) {
+      return res.status(504).json({ error: 'ai-timeout', detail: e.name === 'AbortError' ? 'claude took too long' : String(e.message || e).slice(0, 100) });
+    } finally { clearTimeout(timer); }
+    const j = await r.json().catch(() => ({}));
     if (!r.ok) return res.status(502).json({ error: 'ai-error', detail: [j && j.error && j.error.type, j && j.error && j.error.message].filter(Boolean).join(': ').slice(0, 120) });
     const text = (j.content || []).filter((c) => c.type === 'text').map((c) => c.text).join('');
     const look = parseLook(text);
-    if (!look) return res.status(502).json({ error: 'ai-bad-output' });
+    if (!look) return res.status(502).json({ error: 'ai-bad-output', detail: ('stop=' + (j.stop_reason || '?') + ' ' + text.replace(/\s+/g, ' ')).slice(0, 120) });
     return res.status(200).json({ look, model: MODEL });
   } catch (e) {
-    return res.status(500).json({ error: 'server-error' });
+    return res.status(500).json({ error: 'server-error', detail: String(e && e.message || e).slice(0, 120) });
   }
 };
