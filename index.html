@@ -70,6 +70,7 @@ body.party h1{animation:rb .5s steps(1) infinite}
   </div>
 </main>
 
+<script src="skyline.js"></script>
 <script src="party.js"></script>
 <script src="music.js"></script>
 <script>BQMusic.play('brooklyn');</script>
@@ -132,8 +133,8 @@ function drawRider(g,ox,oy,ph,flip){
 let INV_PARTY=[];
 function riderX(){return Math.round(VW*(INV_PARTY.length>4?0.55:0.3));}
 async function refreshInvite(){await Party.load();INV_PARTY=Party.players;const n=INV_PARTY.length,own=Party.owned();
-  document.getElementById('partyDD').textContent=n?(n+1)+' PLAYERS AND COUNTING':'BE THE FIRST TO JOIN';
-  document.getElementById('p1').textContent=n?'★ '+INV_PARTY.map(p=>p.n).join(' ★ ')+' ★':'★ PLAYER 1 ★ PLAYER 2 ★ PLAYER 3 ★';
+  document.getElementById('partyDD').textContent=(n+1)+(n?' PLAYERS AND COUNTING':' PLAYER: THE MAYOR. JOIN HIM!');
+  document.getElementById('p1').textContent='★ THE MAYOR ★ '+(n?INV_PARTY.map(p=>p.n).join(' ★ ')+' ★':'YOU? ★');
   const mine=INV_PARTY.some(p=>own[p.id]),st=document.getElementById('start');
   const me=INV_PARTY.filter(p=>own[p.id]).pop();
   document.getElementById('tip1').textContent=me?'YOU\'RE IN! THE MAP UNLOCKS ON QUEST DAY.':'PRESS START TO CREATE YOUR 8-BIT CHARACTER.';
@@ -225,7 +226,9 @@ function draw(ms){
   if(!reduce&&t>nextFW){nextFW=t+1.2+Math.random()*1.6;const fx=10+Math.random()*(VW-20),fy=12+Math.random()*Math.max(10,skyH-80),cols=['#e23b4e','#ffffff','#2a6fdb','#ffe14d'];const c1=cols[Math.floor(Math.random()*4)],c2=cols[Math.floor(Math.random()*4)];for(let k=0;k<30;k++){const a=k/30*Math.PI*2,v=16+Math.random()*12;fw.push({x:fx,y:fy,vx:Math.cos(a)*v,vy:Math.sin(a)*v,l:0.9+Math.random()*0.5,c:k%2?c1:c2});}}
   for(let k=fw.length-1;k>=0;k--){const p=fw[k];p.l-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=14*dt;if(p.l<=0){fw.splice(k,1);continue;}b.fillStyle=p.c;b.fillRect(Math.round(p.x),Math.round(p.y),1,1);}
   drawRow(far,x0*0.15,skyH,false,t);
-  {const o=((x0*0.15)%far.period+far.period)%far.period;for(let k=-1;k*far.period<VW+far.period;k++)statue(k*far.period+150-o,skyH+6,t);}
+  {const o=((x0*0.15)%far.period+far.period)%far.period;for(let k=-1;k*far.period<VW+far.period;k++){const bx=k*far.period-o;
+    if(typeof NYC!=='undefined'){NYC.empire(b,Math.round(bx+40),skyH,t);NYC.chrysler(b,Math.round(bx+95),skyH,t);NYC.park432(b,Math.round(bx+215),skyH,t);NYC.oneWTC(b,Math.round(bx+300),skyH,t);}
+    statue(bx+150,skyH+6,t);}}
   b.fillStyle='#12224f';b.fillRect(0,skyH,VW,14);
   for(let i=0;i<VW;i+=7){if(Math.sin(t*3+i*0.7)>0){b.fillStyle=(i%21===0)?'#ffd75e':'#2f4f9a';b.fillRect(i,skyH+2+((i*13)%10),3,1);}}
   // near Brooklyn buildings

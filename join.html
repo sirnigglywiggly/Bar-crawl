@@ -78,7 +78,7 @@ label.lbl{display:block;text-align:left;font-size:8px;color:var(--pink);margin:6
       if (me) { draft = { n: me.n, h: me.h, s: me.s, p: me.p }; $('nick').value = me.n; $('title').innerHTML = 'EDIT YOUR<br>CHARACTER'; $('go').textContent = '▶ SAVE CHANGES'; paint(); }
     }
     $('status').textContent = Party.live
-      ? (Party.players.length ? Party.players.length + ' ALREADY IN: ' + Party.players.map(p => p.n).join(', ') : 'YOU COULD BE THE FIRST ONE IN!')
+      ? ((Party.players.length + 1) + ' ALREADY IN: THE MAYOR' + (Party.players.length ? ', ' + Party.players.map(p => p.n).join(', ') : '. BE THE FIRST TO JOIN HIM!'))
       : "OFFLINE MODE: YOU'LL ONLY BE SAVED ON THIS PHONE.";
   })();
 

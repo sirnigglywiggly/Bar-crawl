@@ -96,6 +96,7 @@ html.locked,html.locked body{overflow:hidden}
 </style>
 </head>
 <body>
+<script src="skyline.js"></script>
 <div id="lock" class="lock" hidden>
   <canvas id="lockSky" aria-hidden="true"></canvas>
   <div class="lockCard">
@@ -139,7 +140,7 @@ html.locked,html.locked body{overflow:hidden}
     const stars = Array.from({ length: 80 }, () => ({ x: R(), y: R(), p: R() * 6, v: 1 + R() * 3 }));
     // generic towers: [relative x, width, height, kind] kinds: 0 flat, 1 stepped spire, 2 needle, 3 slanted top, 4 water tower roof
     const towers = []; { let x = 0; while (x < 1) { const k = R(); const kind = k < 0.08 ? 1 : k < 0.16 ? 2 : k < 0.26 ? 3 : k < 0.5 ? 4 : 0;
-      const w = kind === 1 ? 0.07 : kind === 2 ? 0.06 : 0.04 + R() * 0.05, h = kind === 1 ? 0.62 : kind === 2 ? 0.7 : 0.16 + R() * 0.32;
+      const w = kind === 1 ? 0.07 : kind === 2 ? 0.06 : 0.04 + R() * 0.05, h = kind === 1 ? 0.42 : kind === 2 ? 0.46 : 0.14 + R() * 0.26;
       towers.push({ x, w, h, kind, lit: Array.from({ length: 60 }, () => R() < 0.35) }); x += w + R() * 0.01; } }
     const resize = () => { const dpr = Math.min(devicePixelRatio || 1, 2); cv.width = Math.round(innerWidth * dpr); cv.height = Math.round(innerHeight * dpr);
       const sc = Math.max(2, Math.min(innerWidth / 160, innerHeight / 220)); s = sc * dpr; VW = Math.ceil(cv.width / s); VH = Math.ceil(cv.height / s);
@@ -162,12 +163,14 @@ html.locked,html.locked body{overflow:hidden}
         if (T.kind === 3) { for (let k = 0; k < w; k++) b.fillRect(x + k, top - Math.floor(k / 2), 1, Math.floor(k / 2)); }
         if (T.kind === 4) { const tx = x + Math.floor(w / 2) - 3; b.fillStyle = '#2b1c12'; b.fillRect(tx + 1, top - 3, 1, 3); b.fillRect(tx + 5, top - 3, 1, 3); b.fillStyle = '#6b4426'; b.fillRect(tx, top - 9, 7, 6); b.fillStyle = '#4a2e18'; b.fillRect(tx + 1, top - 10, 5, 1); b.fillRect(tx + 2, top - 11, 3, 1); }
         let i = 0; for (let wy = top + 3; wy < sky - 2; wy += 4) for (let wx = x + 1; wx < x + w - 1; wx += 3) { const on = T.lit[i++ % 60] && !((i * 7 + Math.floor(t)) % 23 === 0); b.fillStyle = on ? '#ffd75e' : '#2a1d55'; b.fillRect(wx, wy, 1, 2); } }
+      // famous towers in front of the generic skyline
+      if (typeof NYC !== 'undefined') { NYC.empire(b, Math.round(VW * 0.2), sky, t); NYC.chrysler(b, Math.round(VW * 0.36), sky, t); NYC.park432(b, Math.round(VW * 0.5), sky, t); NYC.oneWTC(b, Math.round(VW * 0.68), sky, t); }
       // river + bridge + statue
       b.fillStyle = '#12224f'; b.fillRect(0, sky, VW, base - sky + 2);
       for (let i = 0; i < VW; i += 6) if (Math.sin(t * 3 + i) > 0) { b.fillStyle = i % 18 === 0 ? '#ffd75e' : '#2f4f9a'; b.fillRect(i, sky + 2 + (i * 7) % 4, 3, 1); }
       const bx0 = Math.round(VW * 0.08), bx1 = Math.round(VW * 0.62), deck = sky - 2;
       b.fillStyle = '#5b6582'; b.fillRect(bx0, deck, bx1 - bx0, 2);
-      for (const px of [bx0 + 10, bx1 - 10]) { b.fillStyle = '#7f8aa6'; b.fillRect(px - 1, deck - 22, 3, 24); }
+      for (const px of [bx0 + 10, bx1 - 10]) { if (typeof NYC !== 'undefined') NYC.bridgeTower(b, px, deck); else { b.fillStyle = '#7f8aa6'; b.fillRect(px - 1, deck - 22, 3, 24); } }
       b.fillStyle = '#9aa0b4'; for (let x = bx0; x <= bx1; x++) { const u = (x - bx0) / (bx1 - bx0), y = deck - 21 + Math.round(20 * Math.pow(Math.abs(u - 0.5) * 2 - 1, 2) * 0) ; const span = (x < bx0 + 10 || x > bx1 - 10) ? null : (x - (bx0 + 10)) / ((bx1 - 10) - (bx0 + 10)); if (span !== null) b.fillRect(x, deck - 20 + Math.round(18 * 4 * span * (1 - span)), 1, 1); if ((x - bx0) % 5 === 0 && (x % 2 === 0) && span !== null) { const cy = deck - 20 + Math.round(18 * 4 * span * (1 - span)); b.fillStyle = 'rgba(154,160,180,.45)'; b.fillRect(x, cy, 1, deck - cy); b.fillStyle = '#9aa0b4'; } }
       for (let k = 0; k < 6; k++) { const lx = bx0 + ((Math.floor(t * 20) + k * 23) % (bx1 - bx0)); b.fillStyle = k % 2 ? '#ffe9a8' : '#ff6b6b'; b.fillRect(lx, deck - 1, 1, 1); }
       const sx = Math.round(VW * 0.84), sbase = sky + 1; b.fillStyle = '#2f6f63'; b.fillRect(sx - 3, sbase - 6, 8, 6); b.fillRect(sx - 1, sbase - 20, 4, 14); b.fillRect(sx, sbase - 23, 2, 3); b.fillRect(sx + 3, sbase - 28, 1, 9); b.fillStyle = (Math.floor(t * 8) % 2) ? '#ffe14d' : '#ffb02e'; b.fillRect(sx + 3, sbase - 30, 1, 2);
@@ -569,6 +572,8 @@ function goTo(i){
   dest=i;target=nodeArc[i];moving=true;beep(SFX.go);
   document.getElementById('dTag').textContent='▶ RIDING TO STAGE 1-'+(i+1)+'…';
 }
+const GUIDE=['WELCOME TO MY CITY! FIRST ROUND AT BAR MADONNA.','UNION POOL: A BROOKLYN CLASSIC. FOLLOW ME!',"FREE PIZZA WITH EVERY DRINK. MAYOR'S ORDERS!",
+  'WELCOME TO BUSHWICK! STAY TOGETHER, CREW.','COCKTAILS IN BEAKERS. FOR SCIENCE!','PHOTO BOOTH TIME. EVERYBODY IN!','THE FINAL STAGE! DANCE TILL 4 AM!'];
 function arrive(i){
   cur=i;maxR=Math.max(maxR,i);store.set('bq_cur',cur);store.set('bq_max',maxR);
   const rp=posAt(d);
@@ -576,6 +581,7 @@ function arrive(i){
   if(STOPS[i].boss){if(!store.get('bq_clear',false)){store.set('bq_clear',true);setTimeout(()=>{$('clear').hidden=false;},1400);}beep(SFX.win);for(let k=0;k<70;k++)parts.push({x:rp.x,y:rp.y-20,vx:(Math.random()-.5)*90,vy:-30-Math.random()*70,g:80,life:1.6+Math.random(),c:['#ff4fa3','#ffe14d','#18d6c0','#fff','#8a6bff'][k%5]});}
   else{beep(SFX.coin);parts.push({txt:'+1',x:rp.x-3,y:rp.y-40,vx:0,vy:-14,g:0,life:1.1});for(let k=0;k<14;k++)parts.push({x:rp.x,y:rp.y-26,vx:(Math.random()-.5)*50,vy:-20-Math.random()*40,g:90,life:0.9,c:STOPS[i].col});}
   show(i);
+  setTimeout(()=>{const rp=posAt(d);if(!moving&&cur===i)say('🎩 '+GUIDE[i],rp.x,rp.y-36);},STOPS[i].boss?1500:1300);
 }
 const $=id=>document.getElementById(id);
 function show(i){
@@ -641,7 +647,7 @@ function drawGlass2x(g,type,cx,bottom){const s=GLASS[type]||GLASS.other,w=s[0].l
 function hopFor(pid){const now=performance.now()/1000;let h=0;for(const a of DANIM){const e=now-a.t0;if(a.pid===pid&&e<1.4)h=Math.max(h,Math.round(Math.abs(Math.sin(e*9))*6*(1-e/1.4)));}return h;}
 function animPos(pid){if(pid==='rider'){const rp=posAt(d);return{x:rp.x+1,y:rp.y-31};}const f=FOLS.get(pid);if(!f||!f.init)return null;const pl=PARTY.find(p=>p.id===pid);return{x:f.x,y:f.y-((pl&&pl.h.length===384)?26:22)};}
 function startDrinkAnim(dr){const pos=animPos(dr.pid);DANIM.push({pid:dr.pid,type:dr.type,t0:performance.now()/1000});
-  if(pos){sparkle(pos.x,pos.y,'#ffe14d');sparkle(pos.x,pos.y,'#3ddc84');const who=dr.pid==='rider'?'THE RIDER':((PARTY.find(p=>p.id===dr.pid)||{}).n||'');
+  if(pos){sparkle(pos.x,pos.y,'#ffe14d');sparkle(pos.x,pos.y,'#3ddc84');const who=dr.pid==='rider'?'THE MAYOR':((PARTY.find(p=>p.id===dr.pid)||{}).n||'');
     const t=$('drinkToast');t.textContent='🥂 +1 '+(DRINK_NAMES[dr.type]||'DRINK')+(dr.label?': '+dr.label:'')+(who?' · '+who:'');t.hidden=false;t.classList.remove('pop');void t.offsetWidth;t.classList.add('pop');
     clearTimeout(window._dtoast);window._dtoast=setTimeout(()=>{t.hidden=true;},2800);
     follow=false;camX=clampCam(pos.x-viewW/2);clearTimeout(window._dfollow);window._dfollow=setTimeout(()=>{follow=true;},2600);}
@@ -654,17 +660,23 @@ function drawDrinkAnims(g){const now=performance.now()/1000;for(let k=DANIM.leng
     ptext(g,'+1',Math.round(pos.x+sw/2+2),Math.round(b1-sh),(Math.floor(e*8)%2)?'#ffe14d':'#fff');continue;}
   drawGlass2x(g,a.type,cx,bt);ptext(g,'+1',Math.round(cx+gw/2+3),Math.round(bt-gh+1),(Math.floor(e*8)%2)?'#ffe14d':'#fff');}}
 function drawFollowers(g){PARTY.forEach(pl=>{const f=FOLS.get(pl.id);if(f&&f.init)drawWalker(g,f.x,f.y-hopFor(pl.id),pl,f.ph,f.flip,f.mv||hopFor(pl.id)>0);});}
-function drawNames(){if(!PARTY.length)return;ctx.save();ctx.font=Math.round(5*dpr)+'px "Press Start 2P", monospace';ctx.textBaseline='top';ctx.textAlign='center';
+function drawNames(){ctx.save();ctx.font=Math.round(5*dpr)+'px "Press Start 2P", monospace';ctx.textBaseline='top';ctx.textAlign='center';
+  {const rp=posAt(d),sx=(rp.x-(viewW>=W?0:camX))*s+offX,sy=(rp.y-37)*s,t='🎩 THE MAYOR',tw=ctx.measureText(t).width;ctx.fillStyle='rgba(0,0,0,.75)';ctx.fillRect(sx-tw/2-3*dpr,sy-2*dpr,tw+6*dpr,9*dpr);ctx.fillStyle='#ffe14d';ctx.fillText(t,sx,sy);}
+  ctx.restore();if(!PARTY.length)return;ctx.save();ctx.font=Math.round(5*dpr)+'px "Press Start 2P", monospace';ctx.textBaseline='top';ctx.textAlign='center';
   PARTY.forEach(pl=>{const f=FOLS.get(pl.id);if(!f||!f.init)return;const sx=(f.x-(viewW>=W?0:camX))*s+offX,sy=(f.y-(pl.h.length===384?31:27))*s;if(sx<-60||sx>cv.width+60)return;
     const tw=ctx.measureText(pl.n).width;ctx.fillStyle='rgba(0,0,0,.7)';ctx.fillRect(sx-tw/2-3*dpr,sy-2*dpr,tw+6*dpr,9*dpr);ctx.fillStyle='#fff';ctx.fillText(pl.n,sx,sy);});ctx.restore();}
 function renderParty(){
   const n=PARTY.length+1,own=Party.owned(),admin=!!Party.admin()&&(window.HOST_MODE||!Party.live);
   $('pCount').textContent=n;$('cPlayers').textContent=n;
-  $('cNames').textContent=PARTY.length?['THE RIDER'].concat(PARTY.map(p=>p.n)).join(', '):'THE BIRTHDAY CREW';
+  $('cNames').textContent=['THE MAYOR (CITY GUIDE)'].concat(PARTY.map(p=>p.n)).join(', ');
   $('hostRow').hidden=!(admin||window.HOST_MODE||!Party.live);
   const st=$('pStatus');st.textContent=Party.live?'● LIVE · NEW PLAYERS SHOW UP HERE AUTOMATICALLY':'OFFLINE MODE · PLAYERS ARE ONLY SAVED ON THIS PHONE UNTIL THE PARTY DATABASE IS SET UP';st.classList.toggle('on',Party.live);
   const mine=PARTY.some(p=>own[p.id]);$('pJoin').textContent=mine?'+ ADD SOMEONE ELSE':'+ JOIN THE PARTY';
   const ol=$('pList');ol.textContent='';
+  {const li=document.createElement('li'),row=document.createElement('div');row.className='prow2';
+    const c=document.createElement('canvas');c.width=26;c.height=33;drawRider(c.getContext('2d'),12,32,0.6,false);c.style.height='50px';
+    const md=(Party.drinks||[]).filter(x=>x.pid==='rider').length,nm=document.createElement('span');nm.textContent='1. THE MAYOR · CITY GUIDE'+(md?'  🍹×'+md:'');
+    const tag=document.createElement('span');tag.className='t';tag.textContent='🎩 GUIDE';row.append(c,nm,tag);li.appendChild(row);ol.appendChild(li);}
   if(!PARTY.length){const li=document.createElement('li');li.className='small';li.textContent='NO ONE HAS JOINED YET. SEND THE INVITE LINK TO THE GROUP!';ol.appendChild(li);}
   PARTY.forEach((pl,i)=>{const li=document.createElement('li'),row=document.createElement('div');row.className='prow2';
     const c=document.createElement('canvas');c.width=26;c.height=27;drawWalker(c.getContext('2d'),13,26,pl,0,false,false);
@@ -677,13 +689,13 @@ function renderParty(){
         try{await Party.remove(pl.id);await refreshParty();}catch(err){x.textContent='ERROR';}};ctl.appendChild(x);}
     row.append(c,nm,ctl);li.appendChild(row);ol.appendChild(li);});}
 const SEEN_DRINKS=new Set();let drinkType='';
-function myPids(){const own=Party.owned();const ids=PARTY.filter(p=>own[p.id]).map(p=>({id:p.id,n:p.n}));if(window.HOST_MODE)ids.unshift({id:'rider',n:'THE RIDER (BIRTHDAY)'});return ids;}
+function myPids(){const own=Party.owned();const ids=PARTY.filter(p=>own[p.id]).map(p=>({id:p.id,n:p.n}));if(window.HOST_MODE)ids.unshift({id:'rider',n:'THE MAYOR (CITY GUIDE)'});return ids;}
 function paintDrinkUI(){const can=!window.MAP_LOCKED&&myPids().length>0;$('drinkBtn').hidden=!can||!$('drinkBox').hidden;
   const mine=new Set(myPids().map(x=>x.id)),total=(Party.drinks||[]).filter(x=>mine.has(x.pid)).length;if(mine.size)$('hD').textContent='🍹×'+total;}
 function openDrinkBox(){const who=$('dWho');who.textContent='';myPids().forEach(x=>{const o=document.createElement('option');o.value=x.id;o.textContent=x.n;who.appendChild(o);});
   drinkType='';[...$('dTypes').children].forEach(b=>b.classList.remove('on'));$('dLabel').value='';$('dTitle').textContent='LOG A DRINK · '+STOPS[cur].n;
   $('dMsg').textContent='LOG EVERY DRINK. MORE THAN ONE PER BAR IS FINE!';paintDrinkLog();$('drinkBox').hidden=false;$('drinkBtn').hidden=true;}
-function paintDrinkLog(){const ul=$('dLog');ul.textContent='';const names={rider:'THE RIDER'};PARTY.forEach(p=>names[p.id]=p.n);
+function paintDrinkLog(){const ul=$('dLog');ul.textContent='';const names={rider:'THE MAYOR'};PARTY.forEach(p=>names[p.id]=p.n);
   (Party.drinks||[]).filter(x=>x.stop===cur).slice(-8).forEach(x=>{const li=document.createElement('li');li.textContent='• '+(names[x.pid]||'?')+': '+(DRINK_NAMES[x.type]||'DRINK')+(x.label?' ('+x.label+')':'');ul.appendChild(li);});
   if(!ul.children.length){const li=document.createElement('li');li.textContent='NO DRINKS LOGGED HERE YET.';ul.appendChild(li);}}
 async function refreshParty(){
@@ -711,7 +723,7 @@ $('dGo').onclick=async()=>{if(!drinkType){$('dMsg').textContent='PICK WHAT KIND 
   const pid=$('dWho').value;$('dGo').disabled=true;
   try{const dr=await Party.addDrink(pid,cur,drinkType,$('dLabel').value.trim());dr._mine=true;SEEN_DRINKS.add(dr.id);Party.drinks.push(dr);
     $('drinkBox').hidden=true;paintDrinkUI();renderParty();stage.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>startDrinkAnim(dr),350);}
-  catch(e){$('dMsg').textContent=e.message==='that-is-plenty'?'THAT IS PLENTY FOR ONE NIGHT. WATER TIME? 💧':e.message==='host-only'?'ONLY THE HOST CAN LOG FOR THE RIDER.':"COULDN'T SAVE THAT. TRY AGAIN.";}
+  catch(e){$('dMsg').textContent=e.message==='that-is-plenty'?'THAT IS PLENTY FOR ONE NIGHT. WATER TIME? 💧':e.message==='host-only'?'ONLY THE HOST CAN LOG FOR THE MAYOR.':"COULDN'T SAVE THAT. TRY AGAIN.";}
   $('dGo').disabled=false;};
 refreshParty();setInterval(()=>{if(Party.live)refreshParty();},15000);
 resize();show(cur);paintEggs();paintLive();setInterval(paintLive,30000);

@@ -58,6 +58,21 @@ const BQMusic = (() => {
   let ac = null, master = null, noiseBuf = null, timer = null, cur = null, want = null, step = 0, nextT = 0, btn = null;
   let enabled = true; try { enabled = localStorage.getItem('bq_music') !== 'off'; } catch (e) {}
 
+  /* iPhone: Web Audio is muted by the silent switch unless the page is in a "playback" audio session.
+     Newer Safari has navigator.audioSession; older ones switch when an <audio> element plays, so we loop a silent one. */
+  let keepAlive = null;
+  function silentWavUrl() {
+    const sr = 8000, n = 800, buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf);
+    const w = (o, str) => { for (let i = 0; i < str.length; i++) v.setUint8(o + i, str.charCodeAt(i)); };
+    w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVE'); w(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+    v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, n * 2, true);
+    return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+  }
+  function unlockIOS() {
+    try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) {}
+    try { if (!keepAlive) { keepAlive = new Audio(silentWavUrl()); keepAlive.loop = true; keepAlive.setAttribute('playsinline', ''); keepAlive.volume = 0.01; }
+      const p = keepAlive.play(); if (p && p.catch) p.catch(() => {}); } catch (e) {}
+  }
   function ensure() {
     if (!ac) {
       const C = window.AudioContext || window.webkitAudioContext; if (!C) return false;
@@ -102,13 +117,15 @@ const BQMusic = (() => {
     if (btn || !document.body) return;
     btn = document.createElement('button'); btn.type = 'button'; btn.setAttribute('aria-label', 'Music on or off');
     btn.style.cssText = "position:fixed;right:12px;bottom:max(12px,env(safe-area-inset-bottom));z-index:60;font:9px 'Press Start 2P',monospace;padding:10px 12px;min-height:40px;background:#000;color:#fff;border:2px solid #fff;box-shadow:3px 3px 0 #ff4fa3;cursor:pointer";
-    btn.onclick = (e) => { e.stopPropagation(); enabled = !enabled; try { localStorage.setItem('bq_music', enabled ? 'on' : 'off'); } catch (x) {} if (enabled) start(); else stop(); paint(); };
+    btn.onclick = (e) => { e.stopPropagation(); enabled = !enabled; try { localStorage.setItem('bq_music', enabled ? 'on' : 'off'); } catch (x) {} if (enabled) { unlockIOS(); start(); } else { stop(); if (keepAlive) keepAlive.pause(); } paint(); };
     document.body.appendChild(btn); paint();
   }
 
-  const firstTap = () => { start(); };
-  addEventListener('pointerdown', firstTap, { passive: true });
-  addEventListener('keydown', firstTap);
+  // Start on a real user gesture. iPhone only counts click/touchend/keydown as "activation".
+  const firstTap = () => { if (!enabled) return; unlockIOS(); start(); if (ac && ac.state === 'suspended') ac.resume(); };
+  ['touchend', 'click', 'keydown', 'pointerup'].forEach((ev) => addEventListener(ev, firstTap, { passive: true, capture: true }));
+  // Coming back to the tab: resume
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && ac && enabled && timer) ac.resume(); });
 
   return {
     play(name) { if (!TRACKS[name]) return; want = name; if (cur && cur !== name && timer) { /* switches at the next bar */ } else if (ac && enabled) start(); },
