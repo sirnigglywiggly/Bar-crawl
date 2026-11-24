@@ -50,6 +50,15 @@ function drawWalker(g,ox,oy,pl,ph,flip,moving){
 }
 
 function cleanParty(a){if(!Array.isArray(a))return null;return a.filter(p=>p&&typeof p.h==='string'&&/^[0-9a-fx]{100}$/.test(p.h)).slice(0,30).map(p=>({id:String(p.id||'').replace(/[^0-9a-z]/g,'').slice(0,16),n:String(p.n||'PLAYER').toUpperCase().slice(0,10),h:p.h,s:(+p.s|0)&15,p:(+p.p|0)&15}));}
+/* Claude-designed avatar: shrink the photo, send it to /api/avatar, get a pixel look back. */
+function photoToJpegBase64(file,max){return new Promise((res,rej)=>{const url=URL.createObjectURL(file),img=new Image();
+  img.onerror=()=>{URL.revokeObjectURL(url);rej(new Error('bad image'));};
+  img.onload=()=>{const k=Math.min(1,(max||512)/Math.max(img.naturalWidth,img.naturalHeight)),c=document.createElement('canvas');
+    c.width=Math.round(img.naturalWidth*k);c.height=Math.round(img.naturalHeight*k);c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+    URL.revokeObjectURL(url);res(c.toDataURL('image/jpeg',0.85).split(',')[1]);};img.src=url;});}
+async function claudeLook(b64){const r=await fetch('/api/avatar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image:b64,type:'image/jpeg'})});
+  const j=await r.json().catch(()=>({}));if(!r.ok||!j.look)throw new Error(j.error||('HTTP '+r.status));
+  const L=cleanParty([{id:'',n:'X',h:j.look.h,s:j.look.s,p:j.look.p}]);if(!L||!L.length)throw new Error('ai-bad-output');return{h:L[0].h,s:L[0].s,p:L[0].p};}
 /* Shared party list: /api/party on Vercel (Redis). Falls back to this phone only if the API isn't set up. */
 const Party={live:false,players:[],
   owned(){try{return JSON.parse(localStorage.getItem('bq_me'))||{};}catch(e){return {};}},
