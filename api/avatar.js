@@ -88,32 +88,42 @@ module.exports = async (req, res) => {
 
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 55000);
-    let r;
+    const ask = async (opts) => {
+      const r = await fetch(`${API_BASE}/v1/messages`, {
+        method: 'POST',
+        signal: ctrl.signal,
+        headers: {
+          'x-api-key': process.env.ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: MODEL,
+          max_tokens: opts.maxTokens,
+          ...(opts.noThinking ? { thinking: { type: 'disabled' } } : {}),
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'image', source: { type: 'base64', media_type: mediaType, data } },
+              { type: 'text', text: PROMPT },
+            ],
+          }],
+        }),
+      });
+      return { r, j: await r.json().catch(() => ({})) };
+    };
+    let r, j;
     try {
-    r = await fetch(`${API_BASE}/v1/messages`, {
-      method: 'POST',
-      signal: ctrl.signal,
-      headers: {
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 2000,
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'image', source: { type: 'base64', media_type: mediaType, data } },
-            { type: 'text', text: PROMPT },
-          ],
-        }],
-      }),
-    });
+      // 1st try: no extended thinking, so the whole budget goes to the drawing.
+      ({ r, j } = await ask({ maxTokens: 4000, noThinking: true }));
+      // If this model/API doesn't accept that option, or it still ran out, retry with a much bigger budget.
+      const msg = String(j && j.error && j.error.message || '');
+      if ((r.status === 400 && /thinking/i.test(msg)) || (r.ok && j.stop_reason === 'max_tokens')) {
+        ({ r, j } = await ask({ maxTokens: 16000, noThinking: false }));
+      }
     } catch (e) {
       return res.status(504).json({ error: 'ai-timeout', detail: e.name === 'AbortError' ? 'claude took too long' : String(e.message || e).slice(0, 100) });
     } finally { clearTimeout(timer); }
-    const j = await r.json().catch(() => ({}));
     if (!r.ok) return res.status(502).json({ error: 'ai-error', detail: [j && j.error && j.error.type, j && j.error && j.error.message].filter(Boolean).join(': ').slice(0, 120) });
     const text = (j.content || []).filter((c) => c.type === 'text').map((c) => c.text).join('');
     const look = parseLook(text);
