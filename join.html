@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Birthday Quest · Join the Party</title>
+<meta name="theme-color" content="#0b0820">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+:root{--gold:#ffe14d;--pink:#ff4fa3;--teal:#18d6c0}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:#0b0820;color:#fff;font-family:'Press Start 2P',ui-monospace,Menlo,monospace}
+body{background:linear-gradient(#0b0820 0 40%,#160f35 40% 70%,#281951 70%)}
+main{display:flex;justify-content:center;padding:max(18px,env(safe-area-inset-top)) 14px 40px}
+.card{width:100%;max-width:480px;background:rgba(6,4,18,.9);border:4px solid #fff;box-shadow:0 0 0 4px #000,10px 10px 0 4px rgba(0,0,0,.45);padding:22px 16px;text-align:center}
+.p1{font-size:8px;color:var(--teal)}
+h1{font-size:clamp(22px,7vw,32px);line-height:1.3;margin:14px 0 18px;color:var(--gold);text-shadow:3px 3px 0 var(--pink),6px 6px 0 #000;font-weight:normal}
+.stage{position:relative;margin:0 auto 18px;width:208px;height:192px;background:#1a1530;border:2px dashed #4a3f7a}
+#prev{width:208px;height:192px;image-rendering:pixelated;display:block}
+.spin{position:absolute;inset:0;display:none;align-items:center;justify-content:center;font-size:9px;color:var(--gold);background:rgba(0,0,0,.6)}
+.busy .spin{display:flex}
+label.lbl{display:block;text-align:left;font-size:8px;color:var(--pink);margin:6px 0 8px}
+#nick{font-family:inherit;font-size:16px;padding:12px;background:#111;color:#fff;border:2px solid #fff;width:100%;text-transform:uppercase}
+.row{display:flex;flex-wrap:wrap;gap:12px;margin-top:14px}
+.btn{flex:1 1 auto;min-height:48px;display:flex;align-items:center;justify-content:center;font-family:inherit;font-size:9px;padding:12px 8px;background:#fff;color:#000;border:0;box-shadow:0 0 0 3px #000,3px 3px 0 3px var(--pink);cursor:pointer;text-decoration:none}
+.btn:active{transform:translate(2px,2px)}
+.small{font-size:7px;line-height:2;color:#9d94d8;margin:12px 0}
+.go{display:block;width:100%;margin-top:18px;font-family:inherit;font-size:14px;color:#000;background:var(--gold);border:0;padding:16px;box-shadow:0 0 0 4px #000,5px 5px 0 4px var(--pink);cursor:pointer}
+.go:disabled{opacity:.5}
+.err{color:#ff6b6b}
+.links{display:flex;justify-content:space-between;margin-top:22px}
+.links a{font-size:8px;color:#c9c3ff;text-decoration:none;border-bottom:2px dashed #4a3f7a;padding-bottom:4px}
+</style>
+</head>
+<body>
+<main>
+  <div class="card">
+    <div class="p1">★ CHARACTER SELECT ★</div>
+    <h1 id="title">JOIN THE<br>PARTY</h1>
+    <div class="stage" id="stage"><canvas id="prev" width="26" height="24" aria-label="Your 8-bit character"></canvas><div class="spin">PIXELATING…</div></div>
+    <label class="lbl" for="nick">NICKNAME</label>
+    <input id="nick" maxlength="10" autocomplete="nickname" spellcheck="false" placeholder="YOUR NAME">
+    <div class="row">
+      <label class="btn" for="photo">📷 USE A PHOTO</label>
+      <input id="photo" type="file" accept="image/*" hidden>
+      <button class="btn" id="rand" type="button">🎲 RANDOM</button>
+    </div>
+    <p class="small" id="msg">PICK A SELFIE: YOUR FACE BECOMES AN 8-BIT CHARACTER. THE PHOTO NEVER LEAVES YOUR PHONE, ONLY THE TINY PIXEL VERSION IS SAVED.</p>
+    <button class="go" id="go" type="button">▶ JOIN THE PARTY</button>
+    <p class="small" id="status"></p>
+    <div class="links"><a href="index.html">◀ INVITE</a><a href="map.html">MAP ▶</a></div>
+  </div>
+</main>
+<script src="party.js"></script>
+<script>
+{
+  const $ = id => document.getElementById(id);
+  const editId = new URLSearchParams(location.search).get('id');
+  let draft = randomLook((Math.random() * 1e9) | 0), frame = 0;
+
+  const paint = () => { const g = $('prev').getContext('2d'); g.clearRect(0, 0, 26, 24); drawWalker(g, 13, 23, draft, frame, false, true); };
+  setInterval(() => { frame++; paint(); }, 260);
+  paint();
+
+  (async () => {
+    await Party.load();
+    const own = Party.owned();
+    if (editId && own[editId]) {
+      const me = Party.players.find(p => p.id === editId);
+      if (me) { draft = { n: me.n, h: me.h, s: me.s, p: me.p }; $('nick').value = me.n; $('title').innerHTML = 'EDIT YOUR<br>CHARACTER'; $('go').textContent = '▶ SAVE CHANGES'; paint(); }
+    }
+    $('status').textContent = Party.live
+      ? (Party.players.length ? Party.players.length + ' ALREADY IN: ' + Party.players.map(p => p.n).join(', ') : 'YOU COULD BE THE FIRST ONE IN!')
+      : "OFFLINE MODE: YOU'LL ONLY BE SAVED ON THIS PHONE.";
+  })();
+
+  $('rand').onclick = () => { Object.assign(draft, randomLook((Math.random() * 1e9) | 0)); paint(); };
+  $('photo').onchange = async () => {
+    const f = $('photo').files && $('photo').files[0]; if (!f) return;
+    $('stage').classList.add('busy'); $('msg').classList.remove('err');
+    try { Object.assign(draft, await photoLook(f)); paint(); $('msg').textContent = 'LOOKING GOOD! NOT FEELING IT? TRY ANOTHER PHOTO (A CLOSE-UP SELFIE WORKS BEST).'; }
+    catch (e) { $('msg').textContent = "COULDN'T READ THAT PHOTO. TRY A JPG OR PNG."; $('msg').classList.add('err'); }
+    $('stage').classList.remove('busy'); $('photo').value = '';
+  };
+  $('go').onclick = async () => {
+    const n = ($('nick').value || '').trim().toUpperCase().slice(0, 10);
+    if (!n) { $('msg').textContent = 'TYPE A NICKNAME FIRST!'; $('msg').classList.add('err'); $('nick').focus(); return; }
+    $('go').disabled = true; $('go').textContent = 'SAVING…';
+    const pl = { n, h: draft.h, s: draft.s, p: draft.p };
+    try {
+      if (editId && Party.owned()[editId]) await Party.update(editId, pl); else await Party.add(pl);
+      location.href = 'map.html?joined=1';
+    } catch (e) {
+      $('go').disabled = false; $('go').textContent = '▶ TRY AGAIN';
+      $('msg').textContent = e.message === 'party-full' ? 'THE PARTY IS FULL!' : 'SOMETHING WENT WRONG. TRY AGAIN.'; $('msg').classList.add('err');
+    }
+  };
+  $('nick').addEventListener('keydown', e => { if (e.key === 'Enter') $('go').click(); });
+}
+</script>
+</body>
