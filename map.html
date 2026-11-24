@@ -55,11 +55,12 @@ body.party #stage{box-shadow:inset 0 0 0 4px #ff4fa3}
 .sbtn{font-family:inherit;width:44px;height:44px;font-size:18px;background:#fff;color:#000;border:0;box-shadow:0 0 0 3px #000,3px 3px 0 3px var(--pink);cursor:pointer}
 .small{font-size:7px;line-height:2;color:#9d94d8;margin:8px 0}
 #pList .prow2{width:100%;display:grid;grid-template-columns:40px 1fr auto;gap:10px;align-items:center;font-family:inherit;font-size:9px;color:#fff;background:transparent;border:0;border-bottom:2px dashed #2b2550;padding:8px 0;text-align:left;cursor:pointer}
-#pList canvas{width:40px;height:37px;image-rendering:pixelated;background:#1a1530}
+#pList canvas{width:40px;height:42px;image-rendering:pixelated;background:#1a1530}
 .pform{border:2px dashed #4a3f7a;padding:12px;margin:10px 0;display:grid;gap:8px}
 .pform[hidden]{display:none}
 #pPrev{width:104px;height:96px;image-rendering:pixelated;background:#1a1530;justify-self:center}
 #pName,.plink{font-family:inherit;font-size:16px;padding:10px;background:#111;color:#fff;border:2px solid #fff;width:100%}
+.prow[hidden]{display:none}
 .prow{display:flex;flex-wrap:wrap;gap:12px;margin-top:10px}
 .prow .btn{flex:1 1 auto;min-height:44px;display:flex;align-items:center;justify-content:center}
 .small.on{color:#3ddc84}
@@ -100,6 +101,7 @@ body.party #stage{box-shadow:inset 0 0 0 4px #ff4fa3}
     <ol id="pList"></ol>
     <div class="prow"><a class="btn primary" id="pJoin" href="join.html">+ JOIN THE PARTY</a><button class="btn" id="pShare" type="button">🔗 COPY INVITE LINK</button></div>
     <input id="pLink" class="plink" readonly hidden>
+    <div class="prow" id="hostRow" hidden><button class="btn" id="pResetWorld" type="button">☠ RESET WORLD (REMOVE EVERYONE)</button></div>
   </section>
 
   <section class="box">
@@ -505,18 +507,19 @@ function updateFollowers(dt){
   snapFollowers=false;}
 function drawFollowers(g){PARTY.forEach(pl=>{const f=FOLS.get(pl.id);if(f&&f.init)drawWalker(g,f.x,f.y,pl,f.ph,f.flip,f.mv);});}
 function drawNames(){if(!PARTY.length)return;ctx.save();ctx.font=Math.round(5*dpr)+'px "Press Start 2P", monospace';ctx.textBaseline='top';ctx.textAlign='center';
-  PARTY.forEach(pl=>{const f=FOLS.get(pl.id);if(!f||!f.init)return;const sx=(f.x-(viewW>=W?0:camX))*s+offX,sy=(f.y-27)*s;if(sx<-60||sx>cv.width+60)return;
+  PARTY.forEach(pl=>{const f=FOLS.get(pl.id);if(!f||!f.init)return;const sx=(f.x-(viewW>=W?0:camX))*s+offX,sy=(f.y-(pl.h.length===384?31:27))*s;if(sx<-60||sx>cv.width+60)return;
     const tw=ctx.measureText(pl.n).width;ctx.fillStyle='rgba(0,0,0,.7)';ctx.fillRect(sx-tw/2-3*dpr,sy-2*dpr,tw+6*dpr,9*dpr);ctx.fillStyle='#fff';ctx.fillText(pl.n,sx,sy);});ctx.restore();}
 function renderParty(){
   const n=PARTY.length+1,own=Party.owned(),admin=!!Party.admin();
   $('pCount').textContent=n;$('cPlayers').textContent=n;
   $('cNames').textContent=PARTY.length?['THE RIDER'].concat(PARTY.map(p=>p.n)).join(', '):'THE BIRTHDAY CREW';
+  $('hostRow').hidden=!(admin||!Party.live);
   const st=$('pStatus');st.textContent=Party.live?'● LIVE · NEW PLAYERS SHOW UP HERE AUTOMATICALLY':'OFFLINE MODE · PLAYERS ARE ONLY SAVED ON THIS PHONE UNTIL THE PARTY DATABASE IS SET UP';st.classList.toggle('on',Party.live);
   const mine=PARTY.some(p=>own[p.id]);$('pJoin').textContent=mine?'+ ADD SOMEONE ELSE':'+ JOIN THE PARTY';
   const ol=$('pList');ol.textContent='';
   if(!PARTY.length){const li=document.createElement('li');li.className='small';li.textContent='NO ONE HAS JOINED YET. SEND THE INVITE LINK TO THE GROUP!';ol.appendChild(li);}
   PARTY.forEach((pl,i)=>{const li=document.createElement('li'),row=document.createElement('div');row.className='prow2';
-    const c=document.createElement('canvas');c.width=26;c.height=24;drawWalker(c.getContext('2d'),13,23,pl,0,false,false);
+    const c=document.createElement('canvas');c.width=26;c.height=27;drawWalker(c.getContext('2d'),13,26,pl,0,false,false);
     const nm=document.createElement('span');nm.textContent=(i+2)+'. '+pl.n+(own[pl.id]?' (YOU)':'');
     const ctl=document.createElement('span');ctl.className='pctl';
     if(own[pl.id]){const e=document.createElement('a');e.href='join.html?id='+encodeURIComponent(pl.id);e.textContent='EDIT';ctl.appendChild(e);}
@@ -533,6 +536,12 @@ async function refreshParty(){
 $('pShare').onclick=async()=>{const txt=new URL('index.html',location.href).href;
   try{await navigator.clipboard.writeText(txt);$('pShare').textContent='✓ LINK COPIED';setTimeout(()=>$('pShare').textContent='🔗 COPY INVITE LINK',2000);}
   catch(e){const inp=$('pLink');inp.hidden=false;inp.value=txt;inp.select();$('pShare').textContent='COPY THE LINK BELOW';}};
+$('pResetWorld').onclick=async()=>{const b=$('pResetWorld');
+  if(b.dataset.sure!=='1'){b.dataset.sure='1';b.textContent='TAP AGAIN TO WIPE THE WHOLE PARTY';setTimeout(()=>{b.dataset.sure='';b.textContent='☠ RESET WORLD (REMOVE EVERYONE)';},3000);return;}
+  b.dataset.sure='';b.textContent='RESETTING…';
+  try{await Party.resetAll();FOLS.clear();trail.length=0;snapFollowers=true;await refreshParty();resetGame(true);b.textContent='✓ WORLD RESET';}
+  catch(e){b.textContent=e.message==='host-only'?'HOST KEY NEEDED (SEE PARTY_ADMIN_KEY)':'RESET FAILED, TRY AGAIN';}
+  setTimeout(()=>{b.textContent='☠ RESET WORLD (REMOVE EVERYONE)';},3000);};
 refreshParty();setInterval(()=>{if(Party.live)refreshParty();},15000);
 resize();show(cur);paintEggs();paintLive();setInterval(paintLive,30000);
 let last=performance.now()/1000;

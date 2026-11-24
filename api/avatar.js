@@ -5,20 +5,47 @@ const MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-5-5';
 const API_BASE = process.env.ANTHROPIC_BASE_URL || 'https://api.anthropic.com';
 const PER_IP_PER_HOUR = 12;
 const PER_DAY_TOTAL = 150;
-const MASK = new Set([0, 1, 8, 9, 10, 19, 90, 91, 98, 99]);
+const PROMPT = `You are a pixel artist making a full-body 8-bit character of the person in this photo, for a birthday party game. The character must clearly look like them: their skin tone, hair colour and hairstyle (or hat), glasses, beard or moustache, and the exact clothes they are wearing (shirt or jacket colour and simple pattern, pants or skirt colour, shoe colour). Do not try to identify who the person is; only draw what you see. If parts of the body are not in the photo, invent clothes that fit the visible style.
 
-const PROMPT = `You design tiny 8-bit pixel-art avatars for a birthday party game. Look at the photo and design a front-facing pixel head for the person in it, plus shirt and pants colors.
+Canvas: 16 columns x 24 rows, front-facing, standing.
+Palette, one character per pixel:
+0 #0d0b1a near-black (use for outlines, eyes)   1 #2a1a10 dark brown/black hair
+2 #5a3a22 deep brown skin   3 #8a5a33 brown skin   4 #c98b5e tan skin   5 #f2c9a0 light skin
+6 #ffffff white   7 #9aa0b4 grey   8 #e23b4e red   9 #ff7a1a orange   a #ffe14d yellow
+b #3ddc84 green   c #18c3ad teal   d #2a6fdb blue   e #8a6bff purple   f #ff4fa3 pink
+g #3e5a8c denim   h #c9b27c khaki/beige   i #3a3a48 charcoal   j #5b2f8a dark purple
+k #1f6b45 dark green   l #7a1f2b maroon   m #efe3c2 cream   n #a1622e light brown/blond-brown
+x = transparent background
 
-Capture only what is visible: skin tone, hair colour and style (or a hat), glasses, facial hair, and a friendly expression. Do not try to identify who the person is.
+Layout guide:
+- rows 0-9: head about 10 pixels wide (columns 3-12). Hair or hat on top and sides. Face with 2 clear dark eyes (row 5 or 6), eyebrows if visible, a nose hint, a mouth, glasses or facial hair if present. A 1-pixel near-black outline around the head.
+- rows 10-17: torso in the shirt colour (columns 4-11), arms in sleeve colour on columns 2-3 and 12-13, hands in skin colour on row 16-17 of those columns.
+- rows 18-21: pants/legs, two legs (columns 4-7 and 8-11) with a 1-pixel gap or darker line between them.
+- rows 22-23: shoes in the shoe colour, slightly wider than the legs.
+- Outline the whole figure in near-black 0 so it reads on a dark background. Everything else is x.
 
-Palette (index: colour): 0 near-black #0d0b1a, 1 dark brown #2a1a10, 2 deep brown skin #5a3a22, 3 brown skin #8a5a33, 4 tan skin #c98b5e, 5 light skin #f2c9a0, 6 white #ffffff, 7 grey #9aa0b4, 8 red #e23b4e, 9 orange #ff7a1a, a yellow #ffe14d, b green #3ddc84, c teal #18c3ad, d blue #2a6fdb, e purple #8a6bff, f pink #ff4fa3.
+Reply with ONLY this JSON, no other text:
+{"rows":["16 characters", ... exactly 24 strings],"shirt":"<palette char of main shirt colour>","pants":"<palette char of pants colour>"}`;
 
-Grid: 10 rows of 10 characters. Each character is a palette index (0-9, a-f) or x for transparent.
-Layout: rows 0-2 hair or hat; face in rows 2-8, columns 1-8; eyes on row 5 (e.g. columns 3 and 6); mouth on row 7; neck on row 9, columns 4-5. Hair can frame the face down the sides for long hair. These cells must be x: row 0 columns 0,1,8,9; row 1 columns 0,9; row 9 columns 0,1,8,9. Leave everything outside the head silhouette as x. Keep it bold, cute and readable, with clear eyes.
-Pick shirt and pants colours that match what the person wears (shirt must not be a skin tone).
-If there is no person in the photo, make a fun creature head inspired by the main subject.
-
-Reply with only JSON, no other text: {"head":["10 chars", ... 10 rows],"shirt":<0-15>,"pants":<0-15>}`;
+function parseLook(text) {
+  const str = String(text);
+  const a = str.indexOf('{'), b = str.lastIndexOf('}');
+  if (a < 0 || b <= a) return null;
+  let j;
+  try { j = JSON.parse(str.slice(a, b + 1)); } catch (e) { return null; }
+  let rows = Array.isArray(j.rows) ? j.rows : Array.isArray(j.sprite) ? j.sprite : Array.isArray(j.head) ? j.head : null;
+  if (!rows) return null;
+  rows = rows.slice(0, 24).map((r) => {
+    const clean = String(r).toLowerCase().replace(/\s+/g, '').replace(/[^0-9a-nx.]/g, 'x').replace(/\./g, 'x');
+    return (clean + 'x'.repeat(16)).slice(0, 16);
+  });
+  while (rows.length < 24) rows.push('x'.repeat(16));
+  const h = rows.join('');
+  if (h.replace(/x/g, '').length < 60) return null; // too empty to be a character
+  const idx = (v, d) => { const n = parseInt(String(v ?? '').toLowerCase(), 36); return Number.isInteger(n) && n >= 0 && n < 16 ? n : d; };
+  let s = idx(j.shirt, 13); if ([2, 3, 4, 5].includes(s)) s = 13;
+  return { h, s, p: idx(j.pants, 0) };
+}
 
 function storeConfig() {
   const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
@@ -43,19 +70,6 @@ async function overLimit(ip) {
   return perIp > PER_IP_PER_HOUR || total > PER_DAY_TOTAL;
 }
 
-function parseLook(text) {
-  const m = String(text).match(/\{[\s\S]*\}/);
-  if (!m) return null;
-  let j;
-  try { j = JSON.parse(m[0]); } catch (e) { return null; }
-  if (!Array.isArray(j.head) || j.head.length !== 10) return null;
-  const rows = j.head.map((r) => String(r).toLowerCase());
-  if (!rows.every((r) => /^[0-9a-fx]{10}$/.test(r))) return null;
-  const cells = rows.join('').split('').map((c, i) => (MASK.has(i) ? 'x' : c));
-  const shirt = Number.isInteger(+j.shirt) ? +j.shirt & 15 : 13;
-  const pants = Number.isInteger(+j.pants) ? +j.pants & 15 : 0;
-  return { h: cells.join(''), s: [2, 3, 4, 5].includes(shirt) ? 13 : shirt, p: pants };
-}
 
 module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
@@ -80,7 +94,7 @@ module.exports = async (req, res) => {
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 600,
+        max_tokens: 2000,
         messages: [{
           role: 'user',
           content: [
@@ -91,7 +105,7 @@ module.exports = async (req, res) => {
       }),
     });
     const j = await r.json();
-    if (!r.ok) return res.status(502).json({ error: 'ai-error', detail: j && j.error && j.error.type });
+    if (!r.ok) return res.status(502).json({ error: 'ai-error', detail: [j && j.error && j.error.type, j && j.error && j.error.message].filter(Boolean).join(': ').slice(0, 120) });
     const text = (j.content || []).filter((c) => c.type === 'text').map((c) => c.text).join('');
     const look = parseLook(text);
     if (!look) return res.status(502).json({ error: 'ai-bad-output' });

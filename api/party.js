@@ -33,7 +33,7 @@ function cleanPlayer(b) {
     .trim()
     .slice(0, 10);
   const h = String(b.h || '');
-  if (!n || !/^[0-9a-fx]{100}$/.test(h)) return null;
+  if (!n || !/^([0-9a-nx]{100}|[0-9a-nx]{384})$/.test(h)) return null;
   return { n, h, s: (b.s | 0) & 15, p: (b.p | 0) & 15 };
 }
 
@@ -67,6 +67,13 @@ module.exports = async (req, res) => {
       const token = crypto.randomBytes(16).toString('hex');
       await redis(['HSET', KEY, id, JSON.stringify({ id, token, t: Date.now(), ...player })]);
       return res.status(201).json({ id, token, player: publicView({ id, ...player }) });
+    }
+
+    if (req.method === 'DELETE' && body.all === true) {
+      const adminKey = process.env.PARTY_ADMIN_KEY;
+      if (!adminKey || body.admin !== adminKey) return res.status(403).json({ error: 'host-only' });
+      await redis(['DEL', KEY]);
+      return res.status(200).json({ ok: true, reset: true });
     }
 
     if (req.method === 'PUT' || req.method === 'DELETE') {

@@ -1,5 +1,5 @@
 /* ===== PARTY: players + 8-bit avatars (all generated on-device) ===== */
-const PAL=['#0d0b1a','#2a1a10','#5a3a22','#8a5a33','#c98b5e','#f2c9a0','#ffffff','#9aa0b4','#e23b4e','#ff7a1a','#ffe14d','#3ddc84','#18c3ad','#2a6fdb','#8a6bff','#ff4fa3'];
+const PAL=['#0d0b1a','#2a1a10','#5a3a22','#8a5a33','#c98b5e','#f2c9a0','#ffffff','#9aa0b4','#e23b4e','#ff7a1a','#ffe14d','#3ddc84','#18c3ad','#2a6fdb','#8a6bff','#ff4fa3','#3e5a8c','#c9b27c','#3a3a48','#5b2f8a','#1f6b45','#7a1f2b','#efe3c2','#a1622e'];
 const PAL_RGB=PAL.map(h=>[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)]);
 const HEAD_MASK=new Set([0,1,8,9,10,19,90,91,98,99]);
 function nearestPal(r,g,b,allowed){let best=0,bd=1e9;for(const i of (allowed||[...PAL.keys()])){const c=PAL_RGB[i];const d=(r-c[0])**2*0.3+(g-c[1])**2*0.59+(b-c[2])**2*0.11;if(d<bd){bd=d;best=i;}}return best;}
@@ -34,7 +34,14 @@ function photoLook(file){return new Promise((res,rej)=>{
 function headCanvas(pl){if(pl._hc&&pl._hk===pl.h)return pl._hc;const c=document.createElement('canvas');c.width=c.height=10;const g=c.getContext('2d');
   for(let i=0;i<100;i++){const ch=pl.h[i];if(ch==='x'||ch===undefined)continue;g.fillStyle=PAL[parseInt(ch,16)]||PAL[4];g.fillRect(i%10,Math.floor(i/10),1,1);}
   Object.defineProperty(pl,'_hc',{value:c,writable:true,enumerable:false,configurable:true});Object.defineProperty(pl,'_hk',{value:pl.h,writable:true,enumerable:false,configurable:true});return c;}
+/* Full-body sprites (16x24, from Claude): two frames, legs swap for the walk */
+function spriteFrames(pl){if(pl._sf&&pl._sk===pl.h)return pl._sf;const mk=(swap)=>{const c=document.createElement('canvas');c.width=16;c.height=24;const g=c.getContext('2d');
+    for(let y=0;y<24;y++)for(let x=0;x<16;x++){const sx=(swap&&y>=18)?15-x:x,ch=pl.h[y*16+sx];if(!ch||ch==='x')continue;const i=parseInt(ch,36);if(PAL[i]){g.fillStyle=PAL[i];g.fillRect(x,y,1,1);}}return c;};
+  const f=[mk(false),mk(true)];Object.defineProperty(pl,'_sf',{value:f,writable:true,enumerable:false,configurable:true});Object.defineProperty(pl,'_sk',{value:pl.h,writable:true,enumerable:false,configurable:true});return f;}
 function drawWalker(g,ox,oy,pl,ph,flip,moving){
+  if(pl.h&&pl.h.length===384){ox=Math.round(ox);oy=Math.round(oy);const fr=moving?(Math.floor(ph)%2):0,img=spriteFrames(pl)[fr],bob=moving&&fr?-1:0;
+    g.fillStyle='rgba(0,0,0,.35)';g.fillRect(ox-5,oy,10,1);
+    if(flip){g.save();g.translate(ox+8,oy-24+bob);g.scale(-1,1);g.drawImage(img,0,0);g.restore();}else g.drawImage(img,ox-8,oy-24+bob);return;}
   ox=Math.round(ox);oy=Math.round(oy);
   const fr=moving?(Math.floor(ph)%2):0,sc=pl.h[44],skin=(sc&&sc!=='x')?PAL[parseInt(sc,16)]:PAL[4];
   const P=(x,y,c)=>{g.fillStyle=c;g.fillRect(ox+(flip?-x-1:x),oy+y,1,1);};
@@ -49,7 +56,7 @@ function drawWalker(g,ox,oy,pl,ph,flip,moving){
   if(flip){g.save();g.translate(ox+5,oy-21);g.scale(-1,1);g.drawImage(hc,0,0);g.restore();}else g.drawImage(hc,ox-5,oy-21);
 }
 
-function cleanParty(a){if(!Array.isArray(a))return null;return a.filter(p=>p&&typeof p.h==='string'&&/^[0-9a-fx]{100}$/.test(p.h)).slice(0,30).map(p=>({id:String(p.id||'').replace(/[^0-9a-z]/g,'').slice(0,16),n:String(p.n||'PLAYER').toUpperCase().slice(0,10),h:p.h,s:(+p.s|0)&15,p:(+p.p|0)&15}));}
+function cleanParty(a){if(!Array.isArray(a))return null;return a.filter(p=>p&&typeof p.h==='string'&&/^([0-9a-nx]{100}|[0-9a-nx]{384})$/.test(p.h)).slice(0,30).map(p=>({id:String(p.id||'').replace(/[^0-9a-z]/g,'').slice(0,16),n:String(p.n||'PLAYER').toUpperCase().slice(0,10),h:p.h,s:(+p.s|0)&15,p:(+p.p|0)&15}));}
 /* Claude-designed avatar: shrink the photo, send it to /api/avatar, get a pixel look back. */
 function photoToJpegBase64(file,max){return new Promise((res,rej)=>{const url=URL.createObjectURL(file),img=new Image();
   img.onerror=()=>{URL.revokeObjectURL(url);rej(new Error('bad image'));};
@@ -57,7 +64,7 @@ function photoToJpegBase64(file,max){return new Promise((res,rej)=>{const url=UR
     c.width=Math.round(img.naturalWidth*k);c.height=Math.round(img.naturalHeight*k);c.getContext('2d').drawImage(img,0,0,c.width,c.height);
     URL.revokeObjectURL(url);res(c.toDataURL('image/jpeg',0.85).split(',')[1]);};img.src=url;});}
 async function claudeLook(b64){const r=await fetch('/api/avatar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image:b64,type:'image/jpeg'})});
-  const j=await r.json().catch(()=>({}));if(!r.ok||!j.look)throw new Error(j.error||('HTTP '+r.status));
+  const j=await r.json().catch(()=>({}));if(!r.ok||!j.look){const e=new Error(j.error||('HTTP '+r.status));e.detail=j.detail||'';throw e;}
   const L=cleanParty([{id:'',n:'X',h:j.look.h,s:j.look.s,p:j.look.p}]);if(!L||!L.length)throw new Error('ai-bad-output');return{h:L[0].h,s:L[0].s,p:L[0].p};}
 /* Shared party list: /api/party on Vercel (Redis). Falls back to this phone only if the API isn't set up. */
 const Party={live:false,players:[],
@@ -75,6 +82,7 @@ const Party={live:false,players:[],
   async update(id,pl){const clean={n:pl.n,h:pl.h,s:pl.s,p:pl.p};
     if(this.live){await this.call('PUT',Object.assign({id,token:this.owned()[id]||'',admin:this.admin()},clean));return;}
     this.setLocal(this.local().map(p=>p.id===id?Object.assign({id},clean):p));},
+  async resetAll(){if(this.live)await this.call('DELETE',{all:true,admin:this.admin()});else this.setLocal([]);this.setOwned({});},
   async remove(id){if(this.live)await this.call('DELETE',{id,token:this.owned()[id]||'',admin:this.admin()});else this.setLocal(this.local().filter(p=>p.id!==id));
     const o=this.owned();delete o[id];this.setOwned(o);}
 };
