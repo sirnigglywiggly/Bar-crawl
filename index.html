@@ -6,7 +6,7 @@
 <title>Birthday Quest · You're Invited</title>
 <meta name="description" content="Birthday bar crawl · Sat Nov 28 · Williamsburg → Bushwick">
 <meta property="og:title" content="BIRTHDAY QUEST · World 1: Brooklyn">
-<meta property="og:description" content="Sat Nov 28 · 7 PM · 6 bars, 1 drink each · Final stage: Pacha NYC">
+<meta property="og:description" content="Sat Nov 28 · 7 PM · 6 bars, 1 drink each · Spawn point and final boss: to be announced">
 <meta name="theme-color" content="#0b0820">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -57,16 +57,16 @@ body.party h1{animation:rb .5s steps(1) infinite}
     <dl>
       <dt>DATE</dt><dd>SAT · NOV 28</dd>
       <dt>START</dt><dd>7:00 PM</dd>
-      <dt>SPAWN</dt><dd>BAR MADONNA<br>367 METROPOLITAN AVE</dd>
+      <dt>SPAWN</dt><dd id="spawnDD">??? TO BE ANNOUNCED</dd>
       <dt>MISSION</dt><dd>6 BARS · 1 DRINK EACH</dd>
       <dt>PARTY</dt><dd id="partyDD">LOADING…</dd>
-      <dt>BOSS</dt><dd>PACHA NYC · 12 AM<br>MATHAME · MELODIC TECHNO</dd>
+      <dt>BOSS</dt><dd id="bossDD">??? TO BE ANNOUNCED</dd>
     </dl>
     <a class="start" href="join.html" id="start">▶ PRESS START</a>
-    <div><a class="skip" id="skip" href="map.html">OR JUST PEEK AT THE MAP ▶</a></div>
+    <div><a class="skip" id="skip" href="map.html" hidden>THE WORLD MAP IS OPEN ▶</a></div>
     <div><a class="skip host" id="hostLink" href="map.html" hidden>🔑 HOST: OPEN THE FULL MAP ▶</a></div>
     <div class="sub"><button id="cal" type="button">+ ADD TO CALENDAR</button><a class="sbtn2" href="https://open.spotify.com/playlist/5NtciAMMzTnhBs8FoIgslA?utm_source=anthropic&utm_medium=claude&go=1&nap_web=1&request_id=970a17cc-0e4a-4ec7-89d8-27948d0bcfe1" target="_blank" rel="noopener">🎧 NYC SOUNDTRACK ↗</a></div>
-    <p class="tip"><span id="tip1">PRESS START TO CREATE YOUR 8-BIT CHARACTER.</span><br>PRO TIP: GET YOUR PACHA TICKET<br>IN ADVANCE · 21+ · BRING ID.<br>RUNNING LATE? OPEN THE MAP<br>AND JOIN MID-LEVEL.</p>
+    <p class="tip"><span id="tip1">PRESS START TO CREATE YOUR 8-BIT CHARACTER.</span><br>PRO TIP: THE FINAL STAGE IS 21+.<br>BRING YOUR ID!<br>RUNNING LATE? OPEN THE MAP<br>AND JOIN MID-LEVEL.</p>
   </div>
 </main>
 
@@ -84,14 +84,14 @@ if (HOST_NAME) document.getElementById('title').innerHTML = HOST_NAME.toUpperCas
 
 /* ---------- Add to calendar (.ics) ---------- */
 document.getElementById('cal').addEventListener('click', () => {
-  const mapUrl = new URL('map.html', location.href).href;
+  const mapUrl = new URL('index.html', location.href).href;
   const ics = [
     "BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//BirthdayQuest//EN","BEGIN:VEVENT",
     "UID:birthday-quest-20261128@crawl","DTSTAMP:20261123T000000Z",
     "DTSTART:20261129T000000Z","DTEND:20261129T090000Z",
     "SUMMARY:Birthday Quest – Bar Crawl",
-    "LOCATION:Bar Madonna\\, 367 Metropolitan Ave\\, Brooklyn\\, NY",
-    "DESCRIPTION:Williamsburg → Bushwick. 6 bars\\, 1 drink each. Final stage: Pacha NYC. Map: " + mapUrl,
+    "LOCATION:Brooklyn\\, NY (spawn point to be announced)",
+    "DESCRIPTION:6 bars\\, 1 drink each. Spawn point and final boss revealed on quest day. Invite: " + mapUrl,
     "END:VEVENT","END:VCALENDAR"].join("\r\n");
   const url = URL.createObjectURL(new Blob([ics], {type: 'text/calendar'}));
   const a = document.createElement('a'); a.href = url; a.download = 'birthday-quest.ics';
@@ -139,12 +139,18 @@ async function refreshInvite(){await Party.load();INV_PARTY=Party.players;const 
   const me=INV_PARTY.filter(p=>own[p.id]).pop();
   document.getElementById('tip1').textContent=me?'YOU\'RE IN! THE MAP UNLOCKS ON QUEST DAY.':'PRESS START TO CREATE YOUR 8-BIT CHARACTER.';
   st.href=me?'join.html?id='+encodeURIComponent(me.id):'join.html';st.textContent=me?'✎ EDIT MY CHARACTER':'▶ PRESS START';
-  document.getElementById('skip').textContent=me?'PEEK AT THE WORLD MAP ▶':'OR JUST PEEK AT THE MAP ▶';
+
   if(me&&!welcomed&&/[?&]joined=/.test(location.search)){welcomed=true;WELCOME={id:me.id,txt:'WELCOME TO THE PARTY, '+me.n+'!',until:performance.now()+6000};
     const w=document.getElementById('welcome');w.textContent='★ WELCOME TO THE PARTY, '+me.n+'! ★ YOUR CHARACTER IS WALKING BEHIND THE BIRTHDAY RIDER.';w.hidden=false;
     try{history.replaceState(null,'',location.pathname);}catch(e){}if(typeof bigBurst==='function')setTimeout(()=>bigBurst(4),400);}}
 let welcomed=false,WELCOME=null;
 refreshInvite();setInterval(refreshInvite,30000);
+async function revealRoute(){let k='';try{k=localStorage.getItem('bq_admin')||'';}catch(e){}
+  try{const r=await fetch('/api/route'+(k?'?host='+encodeURIComponent(k):''),{cache:'no-store'});if(!r.ok)return;const d=await r.json();if(!d.stops||!d.stops.length)return;
+    const a=d.stops[0],z=d.stops[d.stops.length-1],tag=d.open?'':' 🔑';
+    document.getElementById('spawnDD').textContent=a.n+' · '+a.a.toUpperCase()+tag;document.getElementById('bossDD').textContent=z.n+' · '+z.t+tag;
+    if(d.open){const sk=document.getElementById('skip');sk.hidden=false;}}catch(e){}}
+revealRoute();
 (async()=>{let k='';try{k=localStorage.getItem('bq_admin')||'';}catch(e){}if(!k)return;const ok=await Party.verifyHost(k);
   if(ok!==false){const h=document.getElementById('hostLink');h.href='map.html?host='+encodeURIComponent(k);h.hidden=false;}})();
 /* ---------- Night-time Brooklyn scene ---------- */

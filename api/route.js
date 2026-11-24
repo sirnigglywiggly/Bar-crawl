@@ -1,0 +1,33 @@
+// Birthday Quest · the secret route. Served only to the host (PARTY_ADMIN_KEY) or to everyone
+// from Sat Nov 28 2026, 12:00 AM New York time. (Keep the GitHub repo private so the source stays secret too.)
+const UNLOCK_AT = Date.UTC(2026, 10, 28, 5, 0); // = Nov 28 00:00 in New York (EST, UTC-5)
+
+const STOPS = [
+ {n:"BAR MADONNA",a:"367 Metropolitan Ave",t:"7:00 PM",lat:40.71420,lon:-73.95568,col:"#ff4fa3",
+  note:"SPAWN POINT. Fancy cocktails to start the night. Try the Puttanesca martini.",leg:"NEXT: 5 MIN WALK EAST TO UNION POOL"},
+ {n:"UNION POOL",a:"484 Union Ave",t:"7:45 PM",lat:40.71497,lon:-73.95145,col:"#18d6c0",
+  note:"Williamsburg classic. Cheap drinks, big backyard, taco truck.",leg:"NEXT: 3 MIN WALK TO ALLIGATOR LOUNGE"},
+ {n:"ALLIGATOR LOUNGE",a:"600 Metropolitan Ave",t:"8:30 PM",lat:40.71398,lon:-73.94896,col:"#7bd34a",
+  note:"POWER-UP! Free personal pizza with every drink. Eat here. Karaoke in the back.",leg:"NEXT: ~18 MIN WALK, OR L TRAIN LORIMER ST → MONTROSE AV"},
+ {n:"SLEEPWALK",a:"251 Bushwick Ave",t:"9:30 PM",lat:40.70733,lon:-73.93954,col:"#8a6bff",
+  note:"Welcome to Bushwick. Dark, cozy, great music. Sometimes there's a live set out back.",leg:"NEXT: ~15 MIN WALK, OR A 5 MIN UBER"},
+ {n:"YOURS SINCERELY",a:"41 Wilson Ave",t:"10:30 PM",lat:40.70286,lon:-73.92915,col:"#ffb02e",
+  note:"Cocktails on tap, served in lab beakers. Small room, so one person orders for the party.",leg:"NEXT: 4 MIN WALK TO THREE DIAMOND DOOR"},
+ {n:"THREE DIAMOND DOOR",a:"211 Knickerbocker Ave",t:"11:15 PM",lat:40.70352,lon:-73.92615,col:"#4fc3ff",
+  note:"Bushwick dive with a PHOTO BOOTH. Take the birthday photo here! DJs in the back room.",leg:"NEXT: ~10 MIN WALK NORTH TO THE FINAL STAGE"},
+ {n:"PACHA NYC",a:"140 Stewart Ave",t:"12:00 AM",lat:40.71053,lon:-73.92630,col:"#ffe14d",boss:true,
+  note:"FINAL STAGE! Mathame (melodic techno) on a 2,600-person dancefloor until 4 AM. 21+. Have your ticket ready.",leg:"GAME CLEAR. GET HOME SAFE: JEFFERSON ST (L) IS ABOUT A 7 MIN WALK."}
+];
+
+const GUIDE = ['WELCOME TO MY CITY! FIRST ROUND AT BAR MADONNA.','UNION POOL: A BROOKLYN CLASSIC. FOLLOW ME!',"FREE PIZZA WITH EVERY DRINK. MAYOR'S ORDERS!",
+  'WELCOME TO BUSHWICK! STAY TOGETHER, CREW.','COCKTAILS IN BEAKERS. FOR SCIENCE!','PHOTO BOOTH TIME. EVERYBODY IN!','THE FINAL STAGE! DANCE TILL 4 AM!'];
+
+module.exports = async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  const q = req.query || {};
+  const adminKey = process.env.PARTY_ADMIN_KEY;
+  const host = !!adminKey && typeof q.host === 'string' && q.host === adminKey;
+  const open = Date.now() >= UNLOCK_AT;
+  if (!host && !open) return res.status(403).json({ error: q.host ? 'wrong-host-key' : 'locked', unlocksAt: UNLOCK_AT });
+  return res.status(200).json({ host, open, unlocksAt: UNLOCK_AT, stops: STOPS, guide: GUIDE });
+};
