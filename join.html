@@ -123,7 +123,7 @@ label.lbl{display:block;text-align:left;font-size:8px;color:var(--pink);margin:6
     const pl = { n, h: draft.h, s: draft.s, p: draft.p };
     try {
       if (editId && Party.owned()[editId]) await Party.update(editId, pl); else await Party.add(pl);
-      location.href = 'map.html?joined=1';
+      location.href = 'index.html?joined=1';
     } catch (e) {
       $('go').disabled = false; $('go').textContent = '▶ TRY AGAIN';
       $('msg').textContent = e.message === 'party-full' ? 'THE PARTY IS FULL!' : 'SOMETHING WENT WRONG. TRY AGAIN.'; $('msg').classList.add('err');

@@ -67,11 +67,96 @@ body.party #stage{box-shadow:inset 0 0 0 4px #ff4fa3}
 .pctl{display:flex;gap:10px;align-items:center}
 .pctl a,.pctl button{font-family:inherit;font-size:8px;color:#fff;background:transparent;border:2px solid #fff;padding:8px;min-height:36px;text-decoration:none;cursor:pointer}
 #pList .prow2{cursor:default}
+.lock{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;padding:20px;padding-top:max(20px,env(safe-area-inset-top));overflow:auto}
+.lock[hidden]{display:none}
+html.locked,html.locked body{overflow:hidden}
+#lockSky{position:fixed;inset:0;width:100vw;height:100vh;image-rendering:pixelated;z-index:-1}
+.lockCard{position:relative;max-width:420px;width:100%;background:rgba(6,4,18,.86);border:4px solid #fff;box-shadow:0 0 0 4px #000,10px 10px 0 4px rgba(0,0,0,.45);padding:22px 16px;text-align:center;margin-bottom:28vh}
+.lockCard h2{font-size:20px;color:var(--gold);text-shadow:3px 3px 0 var(--pink),5px 5px 0 #000}
+.lockTxt{font-size:9px;line-height:2.1;margin:12px 0}.lockTxt b{color:var(--gold);font-weight:normal}
+.small2{color:#9d94d8;font-size:7px}
+.lockCount{font-size:13px;color:#3ddc84;margin:16px 0}
+.lockBtns{display:grid;gap:12px;margin-top:16px}
 .foot{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:8px}
 .foot a,.foot button{font-family:inherit;font-size:8px;color:#fff;background:transparent;border:2px solid #fff;padding:10px;text-decoration:none;cursor:pointer}
 </style>
 </head>
 <body>
+<div id="lock" class="lock" hidden>
+  <canvas id="lockSky" aria-hidden="true"></canvas>
+  <div class="lockCard">
+    <div class="tag">★ WORLD 1 · BROOKLYN ★</div>
+    <h2>🔒 MAP LOCKED</h2>
+    <p class="lockTxt">THE WORLD MAP OPENS ON<br><b>SATURDAY · NOV 28</b></p>
+    <p class="lockCount" id="lockCount">⏳ …</p>
+    <p class="lockTxt small2">THE ROUTE STAYS SECRET UNTIL QUEST DAY.<br>MAKE SURE YOUR CHARACTER IS READY!</p>
+    <div class="lockBtns"><a class="btn primary" href="index.html">◀ BACK TO THE INVITE</a><a class="btn" href="join.html" id="lockJoin">✎ MY CHARACTER</a></div>
+  </div>
+</div>
+<script>
+/* ===== Map lock: opens Sat Nov 28 2026, 00:00 New York time (host link always opens it) ===== */
+{
+  const UNLOCK_NY = Date.UTC(2026, 10, 28, 0, 0);
+  const nyNowAsUTC = () => { try { const p = {}; new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric', hourCycle: 'h23' }).formatToParts(new Date()).forEach(x => p[x.type] = +x.value); return Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second); } catch (e) { return Date.now(); } };
+  const isHost = (() => { try { return /[?&]host=/.test(location.search) || !!localStorage.getItem('bq_admin'); } catch (e) { return /[?&]host=/.test(location.search); } })();
+  const lock = document.getElementById('lock');
+  window.MAP_LOCKED = !isHost && nyNowAsUTC() < UNLOCK_NY;
+  if (window.MAP_LOCKED) {
+    lock.hidden = false; document.documentElement.classList.add('locked');
+    try { const own = JSON.parse(localStorage.getItem('bq_me') || '{}'), ids = Object.keys(own); if (ids.length) document.getElementById('lockJoin').href = 'join.html?id=' + encodeURIComponent(ids[ids.length - 1]); } catch (e) {}
+    const paintCount = () => { const ms = UNLOCK_NY - nyNowAsUTC(); if (ms <= 0) { location.reload(); return; }
+      const t = Math.floor(ms / 1000), d = Math.floor(t / 86400), h = Math.floor(t % 86400 / 3600), mi = Math.floor(t % 3600 / 60), se = t % 60;
+      document.getElementById('lockCount').textContent = '⏳ ' + (d ? d + 'D ' : '') + String(h).padStart(2, '0') + 'H ' + String(mi).padStart(2, '0') + 'M ' + String(se).padStart(2, '0') + 'S'; };
+    paintCount(); setInterval(paintCount, 1000);
+
+    /* pixel New York skyline behind the lock card */
+    const cv = document.getElementById('lockSky'), ctx = cv.getContext('2d');
+    let s = 3, VW = 160, VH = 200, b, buf;
+    const R = (() => { let seed = 1128; return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; })();
+    const stars = Array.from({ length: 80 }, () => ({ x: R(), y: R(), p: R() * 6, v: 1 + R() * 3 }));
+    // generic towers: [relative x, width, height, kind] kinds: 0 flat, 1 stepped spire, 2 needle, 3 slanted top, 4 water tower roof
+    const towers = []; { let x = 0; while (x < 1) { const k = R(); const kind = k < 0.08 ? 1 : k < 0.16 ? 2 : k < 0.26 ? 3 : k < 0.5 ? 4 : 0;
+      const w = kind === 1 ? 0.07 : kind === 2 ? 0.06 : 0.04 + R() * 0.05, h = kind === 1 ? 0.62 : kind === 2 ? 0.7 : 0.16 + R() * 0.32;
+      towers.push({ x, w, h, kind, lit: Array.from({ length: 60 }, () => R() < 0.35) }); x += w + R() * 0.01; } }
+    const resize = () => { const dpr = Math.min(devicePixelRatio || 1, 2); cv.width = Math.round(innerWidth * dpr); cv.height = Math.round(innerHeight * dpr);
+      const sc = Math.max(2, Math.min(innerWidth / 160, innerHeight / 220)); s = sc * dpr; VW = Math.ceil(cv.width / s); VH = Math.ceil(cv.height / s);
+      buf = document.createElement('canvas'); buf.width = VW; buf.height = VH; b = buf.getContext('2d'); };
+    addEventListener('resize', resize); resize();
+    const fw = []; let next = 1;
+    const draw = (ms) => {
+      if (!window.MAP_LOCKED) return; const t = ms / 1000, G = VH, base = G - 18, skyH = base;
+      ['#0b0820', '#110c2b', '#181138', '#211646', '#2c1b55', '#3a2063', '#4a2466'].forEach((c, i, a) => { b.fillStyle = c; b.fillRect(0, Math.floor(i * skyH / a.length), VW, Math.ceil(skyH / a.length) + 1); });
+      for (const st of stars) { const tw = Math.sin(t * st.v + st.p); if (tw > -0.3) { b.fillStyle = tw > 0.7 ? '#fff' : '#8f83cf'; b.fillRect(Math.floor(st.x * VW), Math.floor(st.y * skyH * 0.7), 1, 1); } }
+      const mx = VW - 22, my = 18; for (let y = -7; y <= 7; y++) for (let x = -7; x <= 7; x++) if (x * x + y * y <= 49) { b.fillStyle = (x + 2) * (x + 2) + y * y <= 36 ? '#0b0820' : '#fff3c4'; b.fillRect(mx + x, my + y, 1, 1); }
+      if (t > next) { next = t + 1.4 + Math.random() * 1.6; const fx = 10 + Math.random() * (VW - 20), fy = 14 + Math.random() * skyH * 0.35, c = ['#e23b4e', '#ffffff', '#2a6fdb', '#ffe14d', '#ff4fa3'][Math.floor(Math.random() * 5)];
+        for (let k = 0; k < 28; k++) { const a = k / 28 * Math.PI * 2, v = 14 + Math.random() * 10; fw.push({ x: fx, y: fy, vx: Math.cos(a) * v, vy: Math.sin(a) * v, l: 1 + Math.random() * 0.4, c: k % 3 ? c : '#fff' }); } }
+      for (let k = fw.length - 1; k >= 0; k--) { const p = fw[k]; p.l -= 1 / 60; p.x += p.vx / 60; p.y += p.vy / 60; p.vy += 12 / 60; if (p.l <= 0) { fw.splice(k, 1); continue; } b.fillStyle = p.c; b.fillRect(Math.round(p.x), Math.round(p.y), 1, 1); }
+      const sky = base - 6;
+      for (const T of towers) { const x = Math.round(T.x * VW), w = Math.max(4, Math.round(T.w * VW)), h = Math.round(T.h * (sky - 20)), top = sky - h;
+        b.fillStyle = '#1b1440'; b.fillRect(x, top, w, h);
+        if (T.kind === 1) { for (let k = 1; k <= 3; k++) b.fillRect(x + k, top - k * 3, w - k * 2, 3); b.fillRect(x + Math.floor(w / 2), top - 18, 1, 9); b.fillStyle = (Math.floor(t * 2) % 2) ? '#ff3b3b' : '#5a1a1a'; b.fillRect(x + Math.floor(w / 2), top - 19, 1, 1); }
+        if (T.kind === 2) { b.fillRect(x + 1, top - 4, w - 2, 4); b.fillRect(x + Math.floor(w / 2), top - 20, 1, 16); b.fillStyle = '#ffe9a8'; b.fillRect(x + Math.floor(w / 2), top - 21, 1, 1); }
+        if (T.kind === 3) { for (let k = 0; k < w; k++) b.fillRect(x + k, top - Math.floor(k / 2), 1, Math.floor(k / 2)); }
+        if (T.kind === 4) { const tx = x + Math.floor(w / 2) - 3; b.fillStyle = '#2b1c12'; b.fillRect(tx + 1, top - 3, 1, 3); b.fillRect(tx + 5, top - 3, 1, 3); b.fillStyle = '#6b4426'; b.fillRect(tx, top - 9, 7, 6); b.fillStyle = '#4a2e18'; b.fillRect(tx + 1, top - 10, 5, 1); b.fillRect(tx + 2, top - 11, 3, 1); }
+        let i = 0; for (let wy = top + 3; wy < sky - 2; wy += 4) for (let wx = x + 1; wx < x + w - 1; wx += 3) { const on = T.lit[i++ % 60] && !((i * 7 + Math.floor(t)) % 23 === 0); b.fillStyle = on ? '#ffd75e' : '#2a1d55'; b.fillRect(wx, wy, 1, 2); } }
+      // river + bridge + statue
+      b.fillStyle = '#12224f'; b.fillRect(0, sky, VW, base - sky + 2);
+      for (let i = 0; i < VW; i += 6) if (Math.sin(t * 3 + i) > 0) { b.fillStyle = i % 18 === 0 ? '#ffd75e' : '#2f4f9a'; b.fillRect(i, sky + 2 + (i * 7) % 4, 3, 1); }
+      const bx0 = Math.round(VW * 0.08), bx1 = Math.round(VW * 0.62), deck = sky - 2;
+      b.fillStyle = '#5b6582'; b.fillRect(bx0, deck, bx1 - bx0, 2);
+      for (const px of [bx0 + 10, bx1 - 10]) { b.fillStyle = '#7f8aa6'; b.fillRect(px - 1, deck - 22, 3, 24); }
+      b.fillStyle = '#9aa0b4'; for (let x = bx0; x <= bx1; x++) { const u = (x - bx0) / (bx1 - bx0), y = deck - 21 + Math.round(20 * Math.pow(Math.abs(u - 0.5) * 2 - 1, 2) * 0) ; const span = (x < bx0 + 10 || x > bx1 - 10) ? null : (x - (bx0 + 10)) / ((bx1 - 10) - (bx0 + 10)); if (span !== null) b.fillRect(x, deck - 20 + Math.round(18 * 4 * span * (1 - span)), 1, 1); if ((x - bx0) % 5 === 0 && (x % 2 === 0) && span !== null) { const cy = deck - 20 + Math.round(18 * 4 * span * (1 - span)); b.fillStyle = 'rgba(154,160,180,.45)'; b.fillRect(x, cy, 1, deck - cy); b.fillStyle = '#9aa0b4'; } }
+      for (let k = 0; k < 6; k++) { const lx = bx0 + ((Math.floor(t * 20) + k * 23) % (bx1 - bx0)); b.fillStyle = k % 2 ? '#ffe9a8' : '#ff6b6b'; b.fillRect(lx, deck - 1, 1, 1); }
+      const sx = Math.round(VW * 0.84), sbase = sky + 1; b.fillStyle = '#2f6f63'; b.fillRect(sx - 3, sbase - 6, 8, 6); b.fillRect(sx - 1, sbase - 20, 4, 14); b.fillRect(sx, sbase - 23, 2, 3); b.fillRect(sx + 3, sbase - 28, 1, 9); b.fillStyle = (Math.floor(t * 8) % 2) ? '#ffe14d' : '#ffb02e'; b.fillRect(sx + 3, sbase - 30, 1, 2);
+      // Brooklyn shoreline + street
+      b.fillStyle = '#2a1f4a'; b.fillRect(0, base, VW, G - base); b.fillStyle = '#6c5fa0'; b.fillRect(0, base, VW, 1);
+      b.fillStyle = '#ffe14d'; for (let x = -((t * 20) % 12); x < VW; x += 12) b.fillRect(Math.round(x), base + 9, 6, 1);
+      ctx.imageSmoothingEnabled = false; ctx.drawImage(buf, 0, 0, VW, VH, 0, 0, VW * s, VH * s);
+      requestAnimationFrame(draw); };
+    requestAnimationFrame(draw);
+  }
+}
+</script>
 <header><span>BIRTHDAY QUEST</span><a href="index.html">◀ INVITE</a></header>
 <div class="hud">
   <div><b>WORLD</b><span id="hW">1-1</span></div>

@@ -34,6 +34,9 @@ h1{cursor:pointer;user-select:none;-webkit-user-select:none}
 body.party h1{animation:rb .5s steps(1) infinite}
 @keyframes rb{0%{color:#ff4fa3}25%{color:#ffe14d}50%{color:#18d6c0}75%{color:#fff}}
 .skip{display:inline-block;margin-top:22px;font-size:8px;color:#c9c3ff;text-decoration:none;border-bottom:2px dashed #4a3f7a;padding-bottom:4px}
+.welcome{font-size:10px;line-height:1.8;color:#000;background:#3ddc84;padding:12px;margin:14px 0 0;box-shadow:0 0 0 3px #000,4px 4px 0 3px var(--pink);animation:pop .5s steps(4)}
+.welcome[hidden]{display:none}
+@keyframes pop{0%{transform:scale(.6)}100%{transform:scale(1)}}
 .tip{font-size:8px;line-height:2;color:#a9a3d6;margin:18px 0 0}
 @media (prefers-reduced-motion:reduce){.start{animation:none}}
 </style>
@@ -43,6 +46,7 @@ body.party h1{animation:rb .5s steps(1) infinite}
 <main>
   <div class="card">
     <div class="p1" id="p1">★ PLAYER 1 ★ PLAYER 2 ★ PLAYER 3 ★</div>
+    <div class="welcome" id="welcome" hidden></div>
     <div class="inv">YOU'RE INVITED TO</div>
     <h1 id="title">BIRTHDAY<br>QUEST</h1>
     <div class="world">WORLD 1 · BROOKLYN, NYC</div>
@@ -58,7 +62,7 @@ body.party h1{animation:rb .5s steps(1) infinite}
     <a class="start" href="join.html" id="start">▶ PRESS START</a>
     <div><a class="skip" id="skip" href="map.html">OR JUST PEEK AT THE MAP ▶</a></div>
     <div class="sub"><button id="cal" type="button">+ ADD TO CALENDAR</button></div>
-    <p class="tip">PRESS START TO CREATE YOUR 8-BIT CHARACTER.<br>PRO TIP: GET YOUR PACHA TICKET<br>IN ADVANCE · 21+ · BRING ID.<br>RUNNING LATE? OPEN THE MAP<br>AND JOIN MID-LEVEL.</p>
+    <p class="tip"><span id="tip1">PRESS START TO CREATE YOUR 8-BIT CHARACTER.</span><br>PRO TIP: GET YOUR PACHA TICKET<br>IN ADVANCE · 21+ · BRING ID.<br>RUNNING LATE? OPEN THE MAP<br>AND JOIN MID-LEVEL.</p>
   </div>
 </main>
 
@@ -125,7 +129,14 @@ async function refreshInvite(){await Party.load();INV_PARTY=Party.players;const 
   document.getElementById('partyDD').textContent=n?(n+1)+' PLAYERS AND COUNTING':'BE THE FIRST TO JOIN';
   document.getElementById('p1').textContent=n?'★ '+INV_PARTY.map(p=>p.n).join(' ★ ')+' ★':'★ PLAYER 1 ★ PLAYER 2 ★ PLAYER 3 ★';
   const mine=INV_PARTY.some(p=>own[p.id]),st=document.getElementById('start');
-  st.href=mine?'map.html':'join.html';st.textContent=mine?'▶ CONTINUE':'▶ PRESS START';document.getElementById('skip').hidden=mine;}
+  const me=INV_PARTY.filter(p=>own[p.id]).pop();
+  document.getElementById('tip1').textContent=me?'YOU\'RE IN! THE MAP UNLOCKS ON QUEST DAY.':'PRESS START TO CREATE YOUR 8-BIT CHARACTER.';
+  st.href=me?'join.html?id='+encodeURIComponent(me.id):'join.html';st.textContent=me?'✎ EDIT MY CHARACTER':'▶ PRESS START';
+  document.getElementById('skip').textContent=me?'PEEK AT THE WORLD MAP ▶':'OR JUST PEEK AT THE MAP ▶';
+  if(me&&!welcomed&&/[?&]joined=/.test(location.search)){welcomed=true;WELCOME={id:me.id,txt:'WELCOME TO THE PARTY, '+me.n+'!',until:performance.now()+6000};
+    const w=document.getElementById('welcome');w.textContent='★ WELCOME TO THE PARTY, '+me.n+'! ★ YOUR CHARACTER IS WALKING BEHIND THE BIRTHDAY RIDER.';w.hidden=false;
+    try{history.replaceState(null,'',location.pathname);}catch(e){}if(typeof bigBurst==='function')setTimeout(()=>bigBurst(4),400);}}
+let welcomed=false,WELCOME=null;
 refreshInvite();setInterval(refreshInvite,30000);
 /* ---------- Night-time Brooklyn scene ---------- */
 function rng(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
@@ -229,7 +240,8 @@ function draw(ms){
   const rx=riderX(),ry=G-4;
   b.fillStyle='rgba(0,0,0,.35)';b.fillRect(rx-11,ry,22,1);
   if(!reduce){b.fillStyle='#8f83cf';for(let k=0;k<3;k++){const yy=ry-6-k*5,len=4+((Math.floor(t*12)+k)%3)*2;b.fillRect(rx-14-len,yy,len,1);}}
-  INV_PARTY.forEach((pl,k)=>{const row=k%2,x=rx-18-Math.floor(k/2)*13-(row?6:0),gy=row?G-4:G-17;if(x>-12)drawWalker(b,x,gy,pl,t*6+k,false,true);});
+  INV_PARTY.forEach((pl,k)=>{const row=k%2,x=rx-18-Math.floor(k/2)*13-(row?6:0),gy=row?G-4:G-17;if(x>-12)drawWalker(b,x,gy,pl,t*6+k,false,true);
+    if(WELCOME&&WELCOME.id===pl.id&&performance.now()<WELCOME.until&&innerWidth>700){bubble={txt:WELCOME.txt,x:Math.max(30,x),y:gy-(pl.h.length===384?26:22)};bubbleUntil=WELCOME.until;}});
   drawRider(b,rx,ry-(Math.floor(t*8)%2),t*9,false);
   // confetti
   for(const c of conf){c.y+=c.v*dt/VH;if(c.y>1){c.y=0;c.x=Math.random();}b.fillStyle=c.c;b.fillRect(Math.floor(c.x*VW+Math.sin(t*2+c.v)*3),Math.floor(c.y*VH),1,(c.v>11)?2:1);}
