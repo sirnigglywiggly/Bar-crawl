@@ -82,6 +82,8 @@ const Party={live:false,players:[],
   async update(id,pl){const clean={n:pl.n,h:pl.h,s:pl.s,p:pl.p};
     if(this.live){await this.call('PUT',Object.assign({id,token:this.owned()[id]||'',admin:this.admin()},clean));return;}
     this.setLocal(this.local().map(p=>p.id===id?Object.assign({id},clean):p));},
+  /* true = valid host key, false = wrong key, null = can't check (offline/local) */
+  async verifyHost(key){if(!key)return false;try{const r=await fetch('/api/party?verify='+encodeURIComponent(key),{cache:'no-store'});if(r.status===503||r.status===404)return null;const j=await r.json();return typeof j.host==='boolean'?j.host:null;}catch(e){return null;}},
   async resetAll(){if(this.live)await this.call('DELETE',{all:true,admin:this.admin()});else this.setLocal([]);this.setOwned({});},
   async remove(id){if(this.live)await this.call('DELETE',{id,token:this.owned()[id]||'',admin:this.admin()});else this.setLocal(this.local().filter(p=>p.id!==id));
     const o=this.owned();delete o[id];this.setOwned(o);}

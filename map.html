@@ -77,6 +77,8 @@ html.locked,html.locked body{overflow:hidden}
 .small2{color:#9d94d8;font-size:7px}
 .lockCount{font-size:13px;color:#3ddc84;margin:16px 0}
 .lockBtns{display:grid;gap:12px;margin-top:16px}
+.hostb{font-weight:normal;font-size:8px;color:#000;background:#3ddc84;padding:4px 6px;margin-left:6px}
+.hostb[hidden]{display:none}
 .foot{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:8px}
 .foot a,.foot button{font-family:inherit;font-size:8px;color:#fff;background:transparent;border:2px solid #fff;padding:10px;text-decoration:none;cursor:pointer}
 </style>
@@ -98,13 +100,22 @@ html.locked,html.locked body{overflow:hidden}
 {
   const UNLOCK_NY = Date.UTC(2026, 10, 28, 0, 0);
   const nyNowAsUTC = () => { try { const p = {}; new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric', hourCycle: 'h23' }).formatToParts(new Date()).forEach(x => p[x.type] = +x.value); return Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second); } catch (e) { return Date.now(); } };
-  const isHost = (() => { try { return /[?&]host=/.test(location.search) || !!localStorage.getItem('bq_admin'); } catch (e) { return /[?&]host=/.test(location.search); } })();
+  const hostKey = (() => { const m = location.search.match(/[?&]host=([^&]+)/); if (m) { const k = decodeURIComponent(m[1]); try { localStorage.setItem('bq_admin', k); } catch (e) {} return k; } try { return localStorage.getItem('bq_admin') || ''; } catch (e) { return ''; } })();
   const lock = document.getElementById('lock');
-  window.MAP_LOCKED = !isHost && nyNowAsUTC() < UNLOCK_NY;
+  window.MAP_LOCKED = nyNowAsUTC() < UNLOCK_NY;
+  /* Host link: check the key with the server, then open everything */
+  window.HOST_MODE = false;
+  window.unlockForHost = () => { window.HOST_MODE = true; window.MAP_LOCKED = false; lock.hidden = true; document.documentElement.classList.remove('locked');
+    try { localStorage.setItem('bq_host_ok', '1'); } catch (e) {}
+    const hb = document.getElementById('hostBadge'); if (hb) hb.hidden = false;
+    if (window.BQMusic) BQMusic.play('shuffle'); if (typeof renderParty === 'function') try { renderParty(); } catch (e) {} };
+  if (hostKey) addEventListener('DOMContentLoaded', async () => { const ok = (typeof Party !== 'undefined') ? await Party.verifyHost(hostKey) : null;
+    if (ok === false) { try { localStorage.removeItem('bq_admin'); localStorage.removeItem('bq_host_ok'); } catch (e) {} window.HOST_WRONG = true; const c = document.getElementById('lockCount'); if (c && window.MAP_LOCKED) c.textContent = '⚠ THAT HOST KEY IS WRONG'; return; }
+    window.unlockForHost(); });
   if (window.MAP_LOCKED) {
     lock.hidden = false; document.documentElement.classList.add('locked');
     try { const own = JSON.parse(localStorage.getItem('bq_me') || '{}'), ids = Object.keys(own); if (ids.length) document.getElementById('lockJoin').href = 'join.html?id=' + encodeURIComponent(ids[ids.length - 1]); } catch (e) {}
-    const paintCount = () => { const ms = UNLOCK_NY - nyNowAsUTC(); if (ms <= 0) { location.reload(); return; }
+    const paintCount = () => { if (window.HOST_WRONG) return; const ms = UNLOCK_NY - nyNowAsUTC(); if (ms <= 0) { location.reload(); return; }
       const t = Math.floor(ms / 1000), d = Math.floor(t / 86400), h = Math.floor(t % 86400 / 3600), mi = Math.floor(t % 3600 / 60), se = t % 60;
       document.getElementById('lockCount').textContent = '⏳ ' + (d ? d + 'D ' : '') + String(h).padStart(2, '0') + 'H ' + String(mi).padStart(2, '0') + 'M ' + String(se).padStart(2, '0') + 'S'; };
     paintCount(); setInterval(paintCount, 1000);
@@ -157,7 +168,7 @@ html.locked,html.locked body{overflow:hidden}
   }
 }
 </script>
-<header><span>BIRTHDAY QUEST</span><a href="index.html">◀ INVITE</a></header>
+<header><span>BIRTHDAY QUEST <b id="hostBadge" class="hostb" hidden>🔑 HOST</b></span><a href="index.html">◀ INVITE</a></header>
 <div class="hud">
   <div><b>WORLD</b><span id="hW">1-1</span></div>
   <div><b>TIME</b><span id="hT">7:00 PM</span></div>
@@ -213,6 +224,8 @@ html.locked,html.locked body{overflow:hidden}
   </div>
 </div>
 <script src="party.js"></script>
+<script src="music.js"></script>
+<script>BQMusic.play(window.MAP_LOCKED?'brooklyn':'shuffle');</script>
 <script>
 /* ================= THE ROUTE (edit here) ================= */
 const STOPS=[
@@ -248,7 +261,7 @@ function ensureAudio(){try{if(!AC)AC=new (window.AudioContext||window.webkitAudi
 function beep(notes){if(muted||!AC)return;try{let t=AC.currentTime+0.01;for(const [f,d] of notes){const o=AC.createOscillator(),g=AC.createGain();o.type='square';o.frequency.value=f;g.gain.setValueAtTime(0.05,t);g.gain.exponentialRampToValueAtTime(0.001,t+d);o.connect(g);g.connect(AC.destination);o.start(t);o.stop(t+d+0.02);t+=d*0.9;}}catch(e){}}
 const SFX={go:[[523,.05],[659,.05],[784,.08]],coin:[[784,.07],[1047,.07],[1568,.22]],honk:[[294,.1],[294,.2]],party:[[523,.06],[659,.06],[784,.06],[1047,.06],[1319,.06],[1568,.25]],win:[[523,.12],[659,.12],[784,.12],[1047,.3],[784,.1],[1047,.45]]};
 const muteBtn=document.getElementById('mute');
-const paintMute=()=>muteBtn.textContent=muted?'🔇 MUTED':'🔊 SOUND';paintMute();
+const paintMute=()=>muteBtn.textContent=muted?'🔇 SFX OFF':'🔊 SFX ON';paintMute();
 muteBtn.onclick=()=>{muted=!muted;store.set('bq_mute',muted);paintMute();ensureAudio();beep(SFX.go);};
 
 /* ---------- hero sprite (original character) ---------- */
@@ -530,6 +543,7 @@ function goTo(i){
 function arrive(i){
   cur=i;maxR=Math.max(maxR,i);store.set('bq_cur',cur);store.set('bq_max',maxR);
   const rp=posAt(d);
+  if(STOPS[i].boss&&window.BQMusic)BQMusic.stinger('clear');
   if(STOPS[i].boss){if(!store.get('bq_clear',false)){store.set('bq_clear',true);setTimeout(()=>{$('clear').hidden=false;},1400);}beep(SFX.win);for(let k=0;k<70;k++)parts.push({x:rp.x,y:rp.y-20,vx:(Math.random()-.5)*90,vy:-30-Math.random()*70,g:80,life:1.6+Math.random(),c:['#ff4fa3','#ffe14d','#18d6c0','#fff','#8a6bff'][k%5]});}
   else{beep(SFX.coin);parts.push({txt:'+1',x:rp.x-3,y:rp.y-40,vx:0,vy:-14,g:0,life:1.1});for(let k=0;k<14;k++)parts.push({x:rp.x,y:rp.y-26,vx:(Math.random()-.5)*50,vy:-20-Math.random()*40,g:90,life:0.9,c:STOPS[i].col});}
   show(i);
@@ -542,6 +556,7 @@ function show(i){
   $('dNote').textContent=st.note.toUpperCase();$('dLeg').textContent=st.leg;
   $('dir').href=gmaps(st);$('prev').disabled=i===0;
   $('next').disabled=false;$('next').textContent=i===6?'★ CLEAR ★':'NEXT ▶';$('next').title=i===6?'Reset the game and start over':'';
+  if(window.BQMusic&&!window.MAP_LOCKED)BQMusic.play(i>=5?'boss':'shuffle');
   $('hW').textContent='1-'+(i+1);$('hT').textContent=st.t;$('hD').textContent='🍺×'+Math.min(maxR+1,6);
   renderList();
 }
@@ -595,10 +610,10 @@ function drawNames(){if(!PARTY.length)return;ctx.save();ctx.font=Math.round(5*dp
   PARTY.forEach(pl=>{const f=FOLS.get(pl.id);if(!f||!f.init)return;const sx=(f.x-(viewW>=W?0:camX))*s+offX,sy=(f.y-(pl.h.length===384?31:27))*s;if(sx<-60||sx>cv.width+60)return;
     const tw=ctx.measureText(pl.n).width;ctx.fillStyle='rgba(0,0,0,.7)';ctx.fillRect(sx-tw/2-3*dpr,sy-2*dpr,tw+6*dpr,9*dpr);ctx.fillStyle='#fff';ctx.fillText(pl.n,sx,sy);});ctx.restore();}
 function renderParty(){
-  const n=PARTY.length+1,own=Party.owned(),admin=!!Party.admin();
+  const n=PARTY.length+1,own=Party.owned(),admin=!!Party.admin()&&(window.HOST_MODE||!Party.live);
   $('pCount').textContent=n;$('cPlayers').textContent=n;
   $('cNames').textContent=PARTY.length?['THE RIDER'].concat(PARTY.map(p=>p.n)).join(', '):'THE BIRTHDAY CREW';
-  $('hostRow').hidden=!(admin||!Party.live);
+  $('hostRow').hidden=!(admin||window.HOST_MODE||!Party.live);
   const st=$('pStatus');st.textContent=Party.live?'● LIVE · NEW PLAYERS SHOW UP HERE AUTOMATICALLY':'OFFLINE MODE · PLAYERS ARE ONLY SAVED ON THIS PHONE UNTIL THE PARTY DATABASE IS SET UP';st.classList.toggle('on',Party.live);
   const mine=PARTY.some(p=>own[p.id]);$('pJoin').textContent=mine?'+ ADD SOMEONE ELSE':'+ JOIN THE PARTY';
   const ol=$('pList');ol.textContent='';

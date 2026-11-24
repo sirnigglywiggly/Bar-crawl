@@ -56,6 +56,11 @@ module.exports = async (req, res) => {
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body || {};
 
     if (req.method === 'GET') {
+      const q = req.query || {};
+      if (q.verify !== undefined) {
+        const adminKey = process.env.PARTY_ADMIN_KEY;
+        return res.status(200).json({ host: !!adminKey && String(q.verify) === adminKey });
+      }
       return res.status(200).json({ players: (await listPlayers()).map(publicView) });
     }
 
