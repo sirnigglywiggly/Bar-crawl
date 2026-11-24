@@ -29,22 +29,37 @@ Reply with ONLY this JSON, no other text:
 
 function parseLook(text) {
   const str = String(text);
-  const a = str.indexOf('{'), b = str.lastIndexOf('}');
-  if (a < 0 || b <= a) return null;
-  let j;
-  try { j = JSON.parse(str.slice(a, b + 1)); } catch (e) { return null; }
-  let rows = Array.isArray(j.rows) ? j.rows : Array.isArray(j.sprite) ? j.sprite : Array.isArray(j.head) ? j.head : null;
-  if (!rows) return null;
-  rows = rows.slice(0, 24).map((r) => {
-    const clean = String(r).toLowerCase().replace(/\s+/g, '').replace(/[^0-9a-nx.]/g, 'x').replace(/\./g, 'x');
-    return (clean + 'x'.repeat(16)).slice(0, 16);
-  });
+  // 1) Pull every quoted string that looks like a pixel row (works even if the JSON is slightly broken).
+  let rows = [];
+  const re = /"([0-9a-nA-NxX.\s]{10,24})"/g;
+  let m;
+  while ((m = re.exec(str))) {
+    const clean = m[1].toLowerCase().replace(/\s+/g, '').replace(/\./g, 'x');
+    if (clean.length >= 12 && clean.length <= 20) rows.push(clean);
+  }
+  // 2) If that found nothing, try real JSON (rows / sprite / head arrays).
+  if (rows.length < 12) {
+    const a = str.indexOf('{'), b = str.lastIndexOf('}');
+    if (a >= 0 && b > a) {
+      try {
+        const j = JSON.parse(str.slice(a, b + 1));
+        const arr = j.rows || j.sprite || j.grid || j.head;
+        if (Array.isArray(arr)) rows = arr.map((r) => String(r).toLowerCase().replace(/\s+/g, '').replace(/[^0-9a-nx]/g, 'x'));
+      } catch (e) { /* fall through */ }
+    }
+  }
+  if (rows.length < 12) return null;
+  rows = rows.slice(0, 24).map((r) => (r + 'x'.repeat(16)).slice(0, 16));
   while (rows.length < 24) rows.push('x'.repeat(16));
   const h = rows.join('');
   if (h.replace(/x/g, '').length < 60) return null; // too empty to be a character
-  const idx = (v, d) => { const n = parseInt(String(v ?? '').toLowerCase(), 36); return Number.isInteger(n) && n >= 0 && n < 16 ? n : d; };
-  let s = idx(j.shirt, 13); if ([2, 3, 4, 5].includes(s)) s = 13;
-  return { h, s, p: idx(j.pants, 0) };
+  const pick = (key, d) => {
+    const mm = str.match(new RegExp('"' + key + '"\\s*:\\s*"?([0-9a-nA-N]{1,2})'));
+    const n = mm ? parseInt(mm[1].toLowerCase(), mm[1].length === 2 ? 10 : 36) : NaN;
+    return Number.isInteger(n) && n >= 0 && n < 16 ? n : d;
+  };
+  let s = pick('shirt', 13); if ([2, 3, 4, 5].includes(s)) s = 13;
+  return { h, s, p: pick('pants', 0) };
 }
 
 function storeConfig() {
@@ -127,6 +142,7 @@ module.exports = async (req, res) => {
     if (!r.ok) return res.status(502).json({ error: 'ai-error', detail: [j && j.error && j.error.type, j && j.error && j.error.message].filter(Boolean).join(': ').slice(0, 120) });
     const text = (j.content || []).filter((c) => c.type === 'text').map((c) => c.text).join('');
     const look = parseLook(text);
+    if (!look) console.log('[avatar] unreadable reply (stop=' + (j.stop_reason || '?') + '): ' + text.slice(0, 1500));
     if (!look) return res.status(502).json({ error: 'ai-bad-output', detail: ('stop=' + (j.stop_reason || '?') + ' ' + text.replace(/\s+/g, ' ')).slice(0, 120) });
     return res.status(200).json({ look, model: MODEL });
   } catch (e) {
