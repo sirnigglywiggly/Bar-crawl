@@ -6,7 +6,7 @@
 <title>Birthday Quest · You're Invited</title>
 <meta name="description" content="Birthday bar crawl · Sat Nov 28 · Williamsburg → Bushwick">
 <meta property="og:title" content="BIRTHDAY QUEST · World 1: Brooklyn">
-<meta property="og:description" content="Sat Nov 28 · 7 PM · 6 bars, 1 drink each · Final stage: House of Yes">
+<meta property="og:description" content="Sat Nov 28 · 7 PM · 6 bars, 1 drink each · Final stage: Pacha NYC">
 <meta name="theme-color" content="#0b0820">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -46,11 +46,11 @@ dt{color:var(--pink)} dd{margin:0}
       <dt>START</dt><dd>7:00 PM</dd>
       <dt>SPAWN</dt><dd>BAR MADONNA<br>367 METROPOLITAN AVE</dd>
       <dt>MISSION</dt><dd>6 BARS · 1 DRINK EACH</dd>
-      <dt>BOSS</dt><dd>HOUSE OF YES · 12 AM</dd>
+      <dt>BOSS</dt><dd>PACHA NYC · 12 AM<br>MATHAME · MELODIC TECHNO</dd>
     </dl>
     <a class="start" href="map.html" id="start">▶ PRESS START</a>
     <div class="sub"><button id="cal" type="button">+ ADD TO CALENDAR</button></div>
-    <p class="tip">PRO TIP: GET YOUR HOUSE OF YES<br>TICKET IN ADVANCE.<br>RUNNING LATE? OPEN THE MAP<br>AND JOIN MID-LEVEL.</p>
+    <p class="tip">PRO TIP: GET YOUR PACHA TICKET<br>IN ADVANCE · 21+ · BRING ID.<br>RUNNING LATE? OPEN THE MAP<br>AND JOIN MID-LEVEL.</p>
   </div>
 </main>
 
@@ -71,7 +71,7 @@ document.getElementById('cal').addEventListener('click', () => {
     "DTSTART:20261129T000000Z","DTEND:20261129T090000Z",
     "SUMMARY:Birthday Quest – Bar Crawl",
     "LOCATION:Bar Madonna\\, 367 Metropolitan Ave\\, Brooklyn\\, NY",
-    "DESCRIPTION:Williamsburg → Bushwick. 6 bars\\, 1 drink each. Final stage: House of Yes. Map: " + mapUrl,
+    "DESCRIPTION:Williamsburg → Bushwick. 6 bars\\, 1 drink each. Final stage: Pacha NYC. Map: " + mapUrl,
     "END:VEVENT","END:VCALENDAR"].join("\r\n");
   const url = URL.createObjectURL(new Blob([ics], {type: 'text/calendar'}));
   const a = document.createElement('a'); a.href = url; a.download = 'birthday-quest.ics';
