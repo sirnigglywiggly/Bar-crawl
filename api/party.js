@@ -78,6 +78,7 @@ module.exports = async (req, res) => {
       const adminKey = process.env.PARTY_ADMIN_KEY;
       if (!adminKey || body.admin !== adminKey) return res.status(403).json({ error: 'host-only' });
       await redis(['DEL', KEY]);
+      await redis(['DEL', 'bq:drinks']);
       return res.status(200).json({ ok: true, reset: true });
     }
 

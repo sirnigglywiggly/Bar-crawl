@@ -79,6 +79,18 @@ html.locked,html.locked body{overflow:hidden}
 .lockBtns{display:grid;gap:12px;margin-top:16px}
 .hostb{font-weight:normal;font-size:8px;color:#000;background:#3ddc84;padding:4px 6px;margin-left:6px}
 .hostb[hidden]{display:none}
+.dtoast{position:absolute;left:50%;bottom:40px;transform:translateX(-50%);max-width:92%;font-size:8px;line-height:1.7;color:#000;background:#ffe14d;padding:8px 10px;box-shadow:0 0 0 3px #000,3px 3px 0 3px #ff4fa3;text-align:center;pointer-events:none;z-index:2}
+.dtoast[hidden]{display:none}
+.dtoast.pop{animation:dpop .35s steps(3)}
+@keyframes dpop{0%{transform:translateX(-50%) scale(.5)}100%{transform:translateX(-50%) scale(1)}}
+.drinkbtn{width:100%;margin-top:16px;background:#3ddc84!important}
+.drinkbtn[hidden],.drinkBox[hidden]{display:none}
+.drinkBox{margin-top:16px;border:2px dashed #3ddc84;padding:12px;display:grid;gap:8px}
+#dWho,#dLabel{font-family:inherit;font-size:16px;padding:10px;background:#111;color:#fff;border:2px solid #fff;width:100%;text-transform:uppercase}
+.dTypes{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.dTypes button{font-family:inherit;font-size:8px;min-height:48px;background:#1a1530;color:#fff;border:2px solid #4a3f7a;cursor:pointer}
+.dTypes button.on{background:#ffe14d;color:#000;border-color:#000;box-shadow:3px 3px 0 #ff4fa3}
+.dLog{list-style:none;padding:0;margin:4px 0 0;font-size:8px;line-height:2;color:#cfc8ff}
 .foot{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:8px}
 .foot a,.foot button{font-family:inherit;font-size:8px;color:#fff;background:transparent;border:2px solid #fff;padding:10px;text-decoration:none;cursor:pointer}
 </style>
@@ -108,7 +120,7 @@ html.locked,html.locked body{overflow:hidden}
   window.unlockForHost = () => { window.HOST_MODE = true; window.MAP_LOCKED = false; lock.hidden = true; document.documentElement.classList.remove('locked');
     try { localStorage.setItem('bq_host_ok', '1'); } catch (e) {}
     const hb = document.getElementById('hostBadge'); if (hb) hb.hidden = false;
-    if (window.BQMusic) BQMusic.play('shuffle'); if (typeof renderParty === 'function') try { renderParty(); } catch (e) {} };
+    if (window.BQMusic) BQMusic.play('shuffle'); if (typeof renderParty === 'function') try { renderParty(); paintDrinkUI(); } catch (e) {} };
   if (hostKey) addEventListener('DOMContentLoaded', async () => { const ok = (typeof Party !== 'undefined') ? await Party.verifyHost(hostKey) : null;
     if (ok === false) { try { localStorage.removeItem('bq_admin'); localStorage.removeItem('bq_host_ok'); } catch (e) {} window.HOST_WRONG = true; const c = document.getElementById('lockCount'); if (c && window.MAP_LOCKED) c.textContent = '⚠ THAT HOST KEY IS WRONG'; return; }
     window.unlockForHost(); });
@@ -175,7 +187,7 @@ html.locked,html.locked body{overflow:hidden}
   <div><b>DRINKS</b><span id="hD">🍺×1</span></div>
 </div>
 <div id="live" class="live" hidden></div>
-<div id="stage"><canvas id="cv"></canvas><div class="hint">TAP A FLAG OR HIT NEXT · TAP THE RIDER · DRAG TO LOOK</div></div>
+<div id="stage"><canvas id="cv"></canvas><div class="dtoast" id="drinkToast" hidden></div><div class="hint">TAP A FLAG OR HIT NEXT · TAP THE RIDER · DRAG TO LOOK</div></div>
 
 <div class="wrap">
   <section class="box" aria-live="polite">
@@ -188,6 +200,21 @@ html.locked,html.locked body{overflow:hidden}
       <button class="btn" id="prev" type="button">◀ BACK</button>
       <a class="btn" id="dir" target="_blank" rel="noopener">MAP IT</a>
       <button class="btn primary" id="next" type="button">NEXT ▶</button>
+    </div>
+    <button class="btn drinkbtn" id="drinkBtn" type="button" hidden>🍹 WHAT DID YOU DRINK HERE?</button>
+    <div class="drinkBox" id="drinkBox" hidden>
+      <div class="tag" id="dTitle">LOG A DRINK</div>
+      <label class="small" for="dWho">WHO'S DRINKING?</label>
+      <select id="dWho"></select>
+      <div class="dTypes" id="dTypes">
+        <button type="button" data-t="beer">🍺 BEER</button><button type="button" data-t="cocktail">🍸 COCKTAIL</button><button type="button" data-t="shot">🥃 SHOT</button>
+        <button type="button" data-t="wine">🍷 WINE</button><button type="button" data-t="water">💧 WATER</button><button type="button" data-t="other">🥤 OTHER</button>
+      </div>
+      <label class="small" for="dLabel">WHAT WAS IT? (OPTIONAL)</label>
+      <input id="dLabel" maxlength="20" placeholder="E.G. NEGRONI" autocomplete="off">
+      <div class="prow"><button class="btn primary" id="dGo" type="button">🥂 CHEERS! +1</button><button class="btn" id="dCancel" type="button">CANCEL</button></div>
+      <p class="small" id="dMsg">LOG EVERY DRINK. MORE THAN ONE PER BAR IS FINE!</p>
+      <ul class="dLog" id="dLog"></ul>
     </div>
   </section>
 
@@ -206,6 +233,7 @@ html.locked,html.locked body{overflow:hidden}
   </section>
 
   <div class="foot">
+    <a href="https://open.spotify.com/playlist/5NtciAMMzTnhBs8FoIgslA?utm_source=anthropic&utm_medium=claude&go=1&nap_web=1&request_id=970a17cc-0e4a-4ec7-89d8-27948d0bcfe1" target="_blank" rel="noopener">🎧 NYC SOUNDTRACK (SPOTIFY) ↗</a>
     <span id="eggs" class="eggs">🥚 SECRETS 0/13</span>
     <a id="full" target="_blank" rel="noopener">FULL ROUTE IN GOOGLE MAPS ↗</a>
     <button id="mute" type="button">🔊 SOUND</button>
@@ -509,7 +537,8 @@ function render(t){
   if(typeof drawFollowers==='function')drawFollowers(f);
   const rp=posAt(d);
   f.fillStyle='rgba(0,0,0,.4)';f.fillRect(Math.round(rp.x)-10,Math.round(rp.y)+1,20,1);
-  drawRider(f,Math.round(rp.x),Math.round(rp.y)-(moving&&Math.floor(ph*1.5)%2?1:0),ph,facing<0);
+  drawRider(f,Math.round(rp.x),Math.round(rp.y)-(moving&&Math.floor(ph*1.5)%2?1:0)-(typeof hopFor==='function'?hopFor('rider'):0),ph,facing<0);
+  if(typeof drawDrinkAnims==='function')drawDrinkAnims(f);
   for(let k=parts.length-1;k>=0;k--){const p=parts[k];p.life-=1/60;p.x+=p.vx/60;p.y+=p.vy/60;p.vy+=p.g/60;
     if(p.life<=0){parts.splice(k,1);continue;}
     if(p.txt)ptext(f,p.txt,Math.round(p.x),Math.round(p.y),(Math.floor(p.life*10)%2)?'#ffe14d':'#fff');else{f.fillStyle=p.c;f.fillRect(Math.round(p.x),Math.round(p.y),1,1);}}
@@ -557,6 +586,7 @@ function show(i){
   $('dir').href=gmaps(st);$('prev').disabled=i===0;
   $('next').disabled=false;$('next').textContent=i===6?'★ CLEAR ★':'NEXT ▶';$('next').title=i===6?'Reset the game and start over':'';
   if(window.BQMusic&&!window.MAP_LOCKED)BQMusic.play(i>=5?'boss':'shuffle');
+  if(typeof paintDrinkUI==='function'){$('drinkBox').hidden=true;paintDrinkUI();}
   $('hW').textContent='1-'+(i+1);$('hT').textContent=st.t;$('hD').textContent='🍺×'+Math.min(maxR+1,6);
   renderList();
 }
@@ -605,7 +635,25 @@ function updateFollowers(dt){
     const dx=tx-f.x,dy=ty-f.y,dist=Math.hypot(dx,dy),step=Math.min(dist,95*dt);
     if(dist>0.2){f.x+=dx/dist*step;f.y+=dy/dist*step;f.ph+=step*0.22;if(Math.abs(dx)>0.05)f.flip=dx<0;f.mv=true;}else f.mv=false;});
   snapFollowers=false;}
-function drawFollowers(g){PARTY.forEach(pl=>{const f=FOLS.get(pl.id);if(f&&f.init)drawWalker(g,f.x,f.y,pl,f.ph,f.flip,f.mv);});}
+const DANIM=[];
+function drawGlass2x(g,type,cx,bottom){const s=GLASS[type]||GLASS.other,w=s[0].length*2,h=s.length*2,x=Math.round(cx-w/2),y=Math.round(bottom-h);
+  g.fillStyle='rgba(0,0,0,.6)';g.fillRect(x-2,y-2,w+4,h+4);s.forEach((row,r)=>{for(let c=0;c<row.length;c++){const k=row[c];if(k!=='.'){g.fillStyle=GLASS_COL[k];g.fillRect(x+c*2,y+r*2,2,2);}}});}
+function hopFor(pid){const now=performance.now()/1000;let h=0;for(const a of DANIM){const e=now-a.t0;if(a.pid===pid&&e<1.4)h=Math.max(h,Math.round(Math.abs(Math.sin(e*9))*6*(1-e/1.4)));}return h;}
+function animPos(pid){if(pid==='rider'){const rp=posAt(d);return{x:rp.x+1,y:rp.y-31};}const f=FOLS.get(pid);if(!f||!f.init)return null;const pl=PARTY.find(p=>p.id===pid);return{x:f.x,y:f.y-((pl&&pl.h.length===384)?26:22)};}
+function startDrinkAnim(dr){const pos=animPos(dr.pid);DANIM.push({pid:dr.pid,type:dr.type,t0:performance.now()/1000});
+  if(pos){sparkle(pos.x,pos.y,'#ffe14d');sparkle(pos.x,pos.y,'#3ddc84');const who=dr.pid==='rider'?'THE RIDER':((PARTY.find(p=>p.id===dr.pid)||{}).n||'');
+    const t=$('drinkToast');t.textContent='🥂 +1 '+(DRINK_NAMES[dr.type]||'DRINK')+(dr.label?': '+dr.label:'')+(who?' · '+who:'');t.hidden=false;t.classList.remove('pop');void t.offsetWidth;t.classList.add('pop');
+    clearTimeout(window._dtoast);window._dtoast=setTimeout(()=>{t.hidden=true;},2800);
+    follow=false;camX=clampCam(pos.x-viewW/2);clearTimeout(window._dfollow);window._dfollow=setTimeout(()=>{follow=true;},2600);}
+  if(typeof beep==='function'){ensureAudio();beep([[784,.06],[988,.06],[1319,.06],[1568,.2]]);}}
+function drawDrinkAnims(g){const now=performance.now()/1000;for(let k=DANIM.length-1;k>=0;k--){const a=DANIM[k],e=now-a.t0;if(e>2.4){DANIM.splice(k,1);continue;}
+  const pos=animPos(a.pid);if(!pos)continue;const rise=Math.min(e,0.5)*12,bottom=pos.y-7-rise;
+  const sp=GLASS[a.type]||GLASS.other,gw=sp[0].length*2,gh=sp.length*2;let cx=pos.x,bt=bottom;
+  if(bt-gh<3){ /* tight spot at the top edge: a smaller glass, still straight above this player's head */
+    const sw=sp[0].length,sh=sp.length,b1=Math.max(sh+2,pos.y-7-Math.min(e,0.5)*4);drawGlass(g,a.type,Math.round(pos.x-sw/2),Math.round(b1-sh));
+    ptext(g,'+1',Math.round(pos.x+sw/2+2),Math.round(b1-sh),(Math.floor(e*8)%2)?'#ffe14d':'#fff');continue;}
+  drawGlass2x(g,a.type,cx,bt);ptext(g,'+1',Math.round(cx+gw/2+3),Math.round(bt-gh+1),(Math.floor(e*8)%2)?'#ffe14d':'#fff');}}
+function drawFollowers(g){PARTY.forEach(pl=>{const f=FOLS.get(pl.id);if(f&&f.init)drawWalker(g,f.x,f.y-hopFor(pl.id),pl,f.ph,f.flip,f.mv||hopFor(pl.id)>0);});}
 function drawNames(){if(!PARTY.length)return;ctx.save();ctx.font=Math.round(5*dpr)+'px "Press Start 2P", monospace';ctx.textBaseline='top';ctx.textAlign='center';
   PARTY.forEach(pl=>{const f=FOLS.get(pl.id);if(!f||!f.init)return;const sx=(f.x-(viewW>=W?0:camX))*s+offX,sy=(f.y-(pl.h.length===384?31:27))*s;if(sx<-60||sx>cv.width+60)return;
     const tw=ctx.measureText(pl.n).width;ctx.fillStyle='rgba(0,0,0,.7)';ctx.fillRect(sx-tw/2-3*dpr,sy-2*dpr,tw+6*dpr,9*dpr);ctx.fillStyle='#fff';ctx.fillText(pl.n,sx,sy);});ctx.restore();}
@@ -620,16 +668,30 @@ function renderParty(){
   if(!PARTY.length){const li=document.createElement('li');li.className='small';li.textContent='NO ONE HAS JOINED YET. SEND THE INVITE LINK TO THE GROUP!';ol.appendChild(li);}
   PARTY.forEach((pl,i)=>{const li=document.createElement('li'),row=document.createElement('div');row.className='prow2';
     const c=document.createElement('canvas');c.width=26;c.height=27;drawWalker(c.getContext('2d'),13,26,pl,0,false,false);
-    const nm=document.createElement('span');nm.textContent=(i+2)+'. '+pl.n+(own[pl.id]?' (YOU)':'');
+    const dn=(Party.drinks||[]).filter(x=>x.pid===pl.id).length;
+    const nm=document.createElement('span');nm.textContent=(i+2)+'. '+pl.n+(own[pl.id]?' (YOU)':'')+(dn?'  🍹×'+dn:'');
     const ctl=document.createElement('span');ctl.className='pctl';
     if(own[pl.id]){const e=document.createElement('a');e.href='join.html?id='+encodeURIComponent(pl.id);e.textContent='EDIT';ctl.appendChild(e);}
     if(own[pl.id]||admin){const x=document.createElement('button');x.type='button';x.textContent='✕';x.setAttribute('aria-label','Remove '+pl.n);
       x.onclick=async()=>{if(x.dataset.sure!=='1'){x.dataset.sure='1';x.textContent='SURE?';setTimeout(()=>{x.dataset.sure='';x.textContent='✕';},2500);return;}
         try{await Party.remove(pl.id);await refreshParty();}catch(err){x.textContent='ERROR';}};ctl.appendChild(x);}
     row.append(c,nm,ctl);li.appendChild(row);ol.appendChild(li);});}
+const SEEN_DRINKS=new Set();let drinkType='';
+function myPids(){const own=Party.owned();const ids=PARTY.filter(p=>own[p.id]).map(p=>({id:p.id,n:p.n}));if(window.HOST_MODE)ids.unshift({id:'rider',n:'THE RIDER (BIRTHDAY)'});return ids;}
+function paintDrinkUI(){const can=!window.MAP_LOCKED&&myPids().length>0;$('drinkBtn').hidden=!can||!$('drinkBox').hidden;
+  const mine=new Set(myPids().map(x=>x.id)),total=(Party.drinks||[]).filter(x=>mine.has(x.pid)).length;if(mine.size)$('hD').textContent='🍹×'+total;}
+function openDrinkBox(){const who=$('dWho');who.textContent='';myPids().forEach(x=>{const o=document.createElement('option');o.value=x.id;o.textContent=x.n;who.appendChild(o);});
+  drinkType='';[...$('dTypes').children].forEach(b=>b.classList.remove('on'));$('dLabel').value='';$('dTitle').textContent='LOG A DRINK · '+STOPS[cur].n;
+  $('dMsg').textContent='LOG EVERY DRINK. MORE THAN ONE PER BAR IS FINE!';paintDrinkLog();$('drinkBox').hidden=false;$('drinkBtn').hidden=true;}
+function paintDrinkLog(){const ul=$('dLog');ul.textContent='';const names={rider:'THE RIDER'};PARTY.forEach(p=>names[p.id]=p.n);
+  (Party.drinks||[]).filter(x=>x.stop===cur).slice(-8).forEach(x=>{const li=document.createElement('li');li.textContent='• '+(names[x.pid]||'?')+': '+(DRINK_NAMES[x.type]||'DRINK')+(x.label?' ('+x.label+')':'');ul.appendChild(li);});
+  if(!ul.children.length){const li=document.createElement('li');li.textContent='NO DRINKS LOGGED HERE YET.';ul.appendChild(li);}}
 async function refreshParty(){
   const prev=new Set(PARTY.map(p=>p.id));await Party.load();
-  const newbies=Party.players.filter(p=>!prev.has(p.id));PARTY=Party.players;renderParty();
+  await Party.loadDrinks();
+  const newDrinks=(Party.drinks||[]).filter(x=>!SEEN_DRINKS.has(x.id));newDrinks.forEach(x=>SEEN_DRINKS.add(x.id));
+  const newbies=Party.players.filter(p=>!prev.has(p.id));PARTY=Party.players;renderParty();paintDrinkUI();
+  if(refreshed)newDrinks.filter(x=>!x._mine).slice(-3).forEach((x,k)=>setTimeout(()=>startDrinkAnim(x),k*900));
   if(refreshed&&newbies.length){const rp=posAt(d);say(newbies[newbies.length-1].n+' JOINED THE PARTY!',rp.x,rp.y-31);sparkle(rp.x,rp.y-15,'#ffe14d');beep(SFX.coin);}
   if(!refreshed&&/[?&]joined=/.test(location.search)){const own=Party.owned(),me=PARTY.filter(p=>own[p.id]).pop();if(me){const rp=posAt(d);say('WELCOME, '+me.n+'!',rp.x,rp.y-31);setTimeout(()=>{for(let k=0;k<4;k++)burst(40+Math.random()*(W-80),10+Math.random()*40);},300);}}
   refreshed=true;}
@@ -642,6 +704,15 @@ $('pResetWorld').onclick=async()=>{const b=$('pResetWorld');
   try{await Party.resetAll();FOLS.clear();trail.length=0;snapFollowers=true;await refreshParty();resetGame(true);b.textContent='✓ WORLD RESET';}
   catch(e){b.textContent=e.message==='host-only'?'HOST KEY NEEDED (SEE PARTY_ADMIN_KEY)':'RESET FAILED, TRY AGAIN';}
   setTimeout(()=>{b.textContent='☠ RESET WORLD (REMOVE EVERYONE)';},3000);};
+$('drinkBtn').onclick=openDrinkBox;
+$('dCancel').onclick=()=>{$('drinkBox').hidden=true;paintDrinkUI();};
+[...$('dTypes').children].forEach(b=>b.onclick=()=>{drinkType=b.dataset.t;[...$('dTypes').children].forEach(x=>x.classList.toggle('on',x===b));});
+$('dGo').onclick=async()=>{if(!drinkType){$('dMsg').textContent='PICK WHAT KIND OF DRINK FIRST!';return;}
+  const pid=$('dWho').value;$('dGo').disabled=true;
+  try{const dr=await Party.addDrink(pid,cur,drinkType,$('dLabel').value.trim());dr._mine=true;SEEN_DRINKS.add(dr.id);Party.drinks.push(dr);
+    $('drinkBox').hidden=true;paintDrinkUI();renderParty();stage.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>startDrinkAnim(dr),350);}
+  catch(e){$('dMsg').textContent=e.message==='that-is-plenty'?'THAT IS PLENTY FOR ONE NIGHT. WATER TIME? 💧':e.message==='host-only'?'ONLY THE HOST CAN LOG FOR THE RIDER.':"COULDN'T SAVE THAT. TRY AGAIN.";}
+  $('dGo').disabled=false;};
 refreshParty();setInterval(()=>{if(Party.live)refreshParty();},15000);
 resize();show(cur);paintEggs();paintLive();setInterval(paintLive,30000);
 let last=performance.now()/1000;

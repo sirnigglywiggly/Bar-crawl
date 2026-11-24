@@ -84,7 +84,30 @@ const Party={live:false,players:[],
     this.setLocal(this.local().map(p=>p.id===id?Object.assign({id},clean):p));},
   /* true = valid host key, false = wrong key, null = can't check (offline/local) */
   async verifyHost(key){if(!key)return false;try{const r=await fetch('/api/party?verify='+encodeURIComponent(key),{cache:'no-store'});if(r.status===503||r.status===404)return null;const j=await r.json();return typeof j.host==='boolean'?j.host:null;}catch(e){return null;}},
-  async resetAll(){if(this.live)await this.call('DELETE',{all:true,admin:this.admin()});else this.setLocal([]);this.setOwned({});},
+  async resetAll(){if(this.live)await this.call('DELETE',{all:true,admin:this.admin()});else{this.setLocal([]);try{localStorage.removeItem('bq_drinks_local');}catch(e){}}this.setOwned({});},
   async remove(id){if(this.live)await this.call('DELETE',{id,token:this.owned()[id]||'',admin:this.admin()});else this.setLocal(this.local().filter(p=>p.id!==id));
     const o=this.owned();delete o[id];this.setOwned(o);}
 };
+
+/* Drinks: what each player had at each bar */
+Object.assign(Party,{drinks:[],
+  async loadDrinks(){if(this.live){try{const r=await fetch('/api/drinks',{cache:'no-store'});const j=await r.json();if(r.ok&&Array.isArray(j.drinks)){this.drinks=j.drinks;return this.drinks;}}catch(e){}}
+    try{this.drinks=JSON.parse(localStorage.getItem('bq_drinks_local'))||[];}catch(e){this.drinks=[];}return this.drinks;},
+  async addDrink(pid,stop,type,label){
+    if(this.live){const r=await fetch('/api/drinks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pid,stop,type,label,token:this.owned()[pid]||'',admin:this.admin()})});
+      const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||('HTTP '+r.status));return j.drink;}
+    const d={id:'l'+Math.random().toString(16).slice(2,10),pid,stop,type,label:String(label||'').toUpperCase().slice(0,20),t:Date.now()};
+    let a=[];try{a=JSON.parse(localStorage.getItem('bq_drinks_local'))||[];}catch(e){}a.push(d);try{localStorage.setItem('bq_drinks_local',JSON.stringify(a));}catch(e){}return d;}
+});
+/* 8-bit glasses */
+const GLASS={
+  beer:['..WWWW..','.WWWWWW.','.YYYYYGG','.YYYYY.G','.YYYYY.G','.YYYYYGG','.YYYYY..','.GGGGG..'],
+  cocktail:['GGGGGGGGG','.PPPPPKP.','..PPPPP..','...PPP...','....G....','....G....','....G....','..GGGGG..'],
+  shot:['G...G','GOOOG','GOOOG','GOOOG','GGGGG'],
+  wine:['.G...G.','.RRRRR.','.RRRRR.','..RRR..','...G...','...G...','...G...','.GGGGG.'],
+  water:['....P.','...P..','GGGGGG','GBBBBG','GBBBBG','GBBBBG','.GBBG.','.GGGG.'],
+  other:['...P..','..P...','GGGGGG','GCCCCG','GCCCCG','GCCCCG','.GCCG.','.GGGG.']};
+const GLASS_COL={W:'#ffffff',Y:'#ffb02e',G:'#cfd3e0',P:'#ff4fa3',K:'#3ddc84',O:'#e88a1a',R:'#a8203a',B:'#4fc3ff',C:'#8a6bff'};
+function drawGlass(g,type,x,y){const s=GLASS[type]||GLASS.other;x=Math.round(x);y=Math.round(y);g.fillStyle='rgba(0,0,0,.55)';g.fillRect(x-1,y-1,s[0].length+2,s.length+2);
+  s.forEach((row,r)=>{for(let c=0;c<row.length;c++){const k=row[c];if(k!=='.'){g.fillStyle=GLASS_COL[k];g.fillRect(x+c,y+r,1,1);}}});}
+const DRINK_NAMES={beer:'BEER',cocktail:'COCKTAIL',shot:'SHOT',wine:'WINE',water:'WATER',other:'DRINK'};
