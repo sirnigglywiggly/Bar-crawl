@@ -147,7 +147,7 @@ let welcomed=false,WELCOME=null;
 refreshInvite();setInterval(refreshInvite,30000);
 async function revealRoute(){let k='';try{k=localStorage.getItem('bq_admin')||'';}catch(e){}
   try{const r=await fetch('/api/route'+(k?'?host='+encodeURIComponent(k):''),{cache:'no-store'});if(!r.ok)return;const d=await r.json();if(!d.stops||!d.stops.length)return;
-    const a=d.stops[0],z=d.stops[d.stops.length-1],tag=d.open?'':' 🔑';
+    const a=d.stops[0],z=d.stops[d.stops.length-1],tag=d.open?'':' 🔑 (ONLY YOU SEE THIS)';
     document.getElementById('spawnDD').textContent=a.n+' · '+a.a.toUpperCase()+tag;document.getElementById('bossDD').textContent=z.n+' · '+z.t+tag;
     if(d.open){const sk=document.getElementById('skip');sk.hidden=false;}}catch(e){}}
 revealRoute();

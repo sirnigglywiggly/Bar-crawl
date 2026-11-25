@@ -1,6 +1,17 @@
-// Birthday Quest · the secret route. Served only to the host (PARTY_ADMIN_KEY) or to everyone
-// from Sat Nov 28 2026, 12:00 AM New York time. (Keep the GitHub repo private so the source stays secret too.)
-const UNLOCK_AT = Date.UTC(2026, 10, 28, 5, 0); // = Nov 28 00:00 in New York (EST, UTC-5)
+// Birthday Quest · the secret route. Served only to the host (PARTY_ADMIN_KEY), or to everyone once the host
+// taps REVEAL, or automatically when the quest starts (Sat Nov 28 2026, 7:00 PM New York). Keep the repo private.
+const UNLOCK_AT = Date.UTC(2026, 10, 29, 0, 0); // = Nov 28 19:00 in New York (EST, UTC-5)
+const REVEAL_KEY = 'bq:reveal';
+function storeConfig() {
+  const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
+  return url && token ? { url, token } : null;
+}
+async function redis(cmd) {
+  const cfg = storeConfig(); if (!cfg) return null;
+  const r = await fetch(cfg.url, { method: 'POST', headers: { Authorization: `Bearer ${cfg.token}`, 'Content-Type': 'application/json' }, body: JSON.stringify(cmd) });
+  const j = await r.json(); if (j.error) throw new Error(j.error); return j.result;
+}
 
 const STOPS = [
  {n:"BAR MADONNA",a:"367 Metropolitan Ave",t:"7:00 PM",lat:40.71420,lon:-73.95568,col:"#ff4fa3",
@@ -26,8 +37,15 @@ module.exports = async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
   const q = req.query || {};
   const adminKey = process.env.PARTY_ADMIN_KEY;
+  if (req.method === 'POST') { // host: reveal or hide the route for everyone
+    const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body || {};
+    if (!adminKey || body.admin !== adminKey) return res.status(403).json({ error: 'host-only' });
+    try { await redis(body.reveal ? ['SET', REVEAL_KEY, '1'] : ['DEL', REVEAL_KEY]); } catch (e) { return res.status(500).json({ error: 'server-error' }); }
+    return res.status(200).json({ revealed: !!body.reveal });
+  }
   const host = !!adminKey && typeof q.host === 'string' && q.host === adminKey;
-  const open = Date.now() >= UNLOCK_AT;
+  let revealed = false; try { revealed = (await redis(['GET', REVEAL_KEY])) === '1'; } catch (e) {}
+  const open = revealed || Date.now() >= UNLOCK_AT;
   if (!host && !open) return res.status(403).json({ error: q.host ? 'wrong-host-key' : 'locked', unlocksAt: UNLOCK_AT });
-  return res.status(200).json({ host, open, unlocksAt: UNLOCK_AT, stops: STOPS, guide: GUIDE });
+  return res.status(200).json({ host, open, revealed, unlocksAt: UNLOCK_AT, stops: STOPS, guide: GUIDE });
 };

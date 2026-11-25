@@ -451,6 +451,16 @@ $('dGo').onclick=async()=>{if(!drinkType){$('dMsg').textContent='PICK WHAT KIND 
     $('drinkBox').hidden=true;paintDrinkUI();renderParty();stage.scrollIntoView({behavior:'smooth',block:'center'});setTimeout(()=>startDrinkAnim(dr),350);}
   catch(e){$('dMsg').textContent=e.message==='that-is-plenty'?'THAT IS PLENTY FOR ONE NIGHT. WATER TIME? 💧':e.message==='host-only'?'ONLY THE HOST CAN LOG FOR THE MAYOR.':"COULDN'T SAVE THAT. TRY AGAIN.";}
   $('dGo').disabled=false;};
+function paintReveal(){const b=$('pReveal'),msg=$('revealMsg');if(!b)return;const rv=!!(window.ROUTE&&window.ROUTE.revealed);
+  b.textContent=rv?'🙈 HIDE SPAWN & BOSS AGAIN':'📣 REVEAL SPAWN & BOSS TO EVERYONE';msg.hidden=false;
+  msg.textContent=rv?'REVEALED: EVERYONE CAN SEE THE SPAWN POINT, THE BOSS AND THE MAP.':'HIDDEN: FRIENDS SEE "??? TO BE ANNOUNCED" UNTIL YOU REVEAL (OR 7 PM SAT, AUTOMATICALLY).';}
+$('pReveal').onclick=async()=>{const b=$('pReveal'),want=!(window.ROUTE&&window.ROUTE.revealed);
+  if(want&&b.dataset.sure!=='1'){b.dataset.sure='1';b.textContent='TAP AGAIN: REVEAL TO EVERYONE?';setTimeout(()=>{b.dataset.sure='';paintReveal();},3000);return;}
+  b.dataset.sure='';b.textContent='…';
+  try{const r=await fetch('/api/route',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({admin:Party.admin(),reveal:want})});const j=await r.json();if(!r.ok)throw new Error(j.error);
+    window.ROUTE.revealed=j.revealed;paintReveal();if(j.revealed){for(let k=0;k<5;k++)burst(40+Math.random()*(W-80),10+Math.random()*40);beep(SFX.win);}}
+  catch(e){b.textContent=e.message==='host-only'?'HOST WORD NEEDED':'FAILED, TRY AGAIN';setTimeout(paintReveal,2500);}};
+paintReveal();
 refreshParty();setInterval(()=>{if(Party.live)refreshParty();},15000);
 resize();show(cur);paintEggs();paintLive();setInterval(paintLive,30000);
 let last=performance.now()/1000;

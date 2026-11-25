@@ -102,16 +102,16 @@ html.locked,html.locked body{overflow:hidden}
   <div class="lockCard">
     <div class="tag">★ WORLD 1 · BROOKLYN ★</div>
     <h2>🔒 MAP LOCKED</h2>
-    <p class="lockTxt">THE WORLD MAP OPENS ON<br><b>SATURDAY · NOV 28</b></p>
+    <p class="lockTxt">THE ROUTE IS TOP SECRET.<br>THE MAYOR WILL REVEAL IT<br><b>BY 7 PM · SAT NOV 28</b></p>
     <p class="lockCount" id="lockCount">⏳ …</p>
-    <p class="lockTxt small2">THE ROUTE STAYS SECRET UNTIL QUEST DAY.<br>MAKE SURE YOUR CHARACTER IS READY!</p>
+    <p class="lockTxt small2">SPAWN POINT AND FINAL BOSS: TO BE ANNOUNCED.<br>MAKE SURE YOUR CHARACTER IS READY!</p>
     <div class="lockBtns"><a class="btn primary" href="index.html">◀ BACK TO THE INVITE</a><a class="btn" href="join.html" id="lockJoin">✎ MY CHARACTER</a></div>
   </div>
 </div>
 <script>
 /* ===== Map lock: opens Sat Nov 28 2026, 00:00 New York time (host link always opens it) ===== */
 {
-  const UNLOCK_NY = Date.UTC(2026, 10, 28, 0, 0);
+  const UNLOCK_NY = Date.UTC(2026, 10, 28, 19, 0); /* latest reveal: quest start, 7 PM NY. The mayor can reveal earlier. */
   const nyNowAsUTC = () => { try { const p = {}; new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric', hourCycle: 'h23' }).formatToParts(new Date()).forEach(x => p[x.type] = +x.value); return Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second); } catch (e) { return Date.now(); } };
   const hostKey = (() => { const m = location.search.match(/[?&]host=([^&]+)/); if (m) { const k = decodeURIComponent(m[1]); try { localStorage.setItem('bq_admin', k); } catch (e) {} return k; } try { return localStorage.getItem('bq_admin') || ''; } catch (e) { return ''; } })();
   const lock = document.getElementById('lock');
@@ -226,7 +226,8 @@ html.locked,html.locked body{overflow:hidden}
     <ol id="pList"></ol>
     <div class="prow"><a class="btn primary" id="pJoin" href="join.html">+ JOIN THE PARTY</a><button class="btn" id="pShare" type="button">🔗 COPY INVITE LINK</button></div>
     <input id="pLink" class="plink" readonly hidden>
-    <div class="prow" id="hostRow" hidden><button class="btn" id="pResetWorld" type="button">☠ RESET WORLD (REMOVE EVERYONE)</button></div>
+    <div class="prow" id="hostRow" hidden><button class="btn primary" id="pReveal" type="button">📣 REVEAL SPAWN & BOSS TO EVERYONE</button><button class="btn" id="pResetWorld" type="button">☠ RESET WORLD (REMOVE EVERYONE)</button></div>
+    <p class="small" id="revealMsg" hidden></p>
   </section>
 
   <section class="box">
